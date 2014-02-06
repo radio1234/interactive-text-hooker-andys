@@ -742,7 +742,8 @@ bool ProfileManager::AddProfile(TiXmlElement* game)
 	if (len >= MAX_PATH) return false;
 	UTF8to16(path, nt_path);
 	nt_path[len] = 0;
-	if (hash && !CheckFileHash(hash, nt_path)) return false;
+	// Andys - removed hashing files on stattup. With many profiles, that makes ITH hang for minutes
+	//if (hash && !CheckFileHash(hash, nt_path)) return false;
 
 	Profile *pf = new Profile;
 	if (!pf->XmlReadProfile(profile))
