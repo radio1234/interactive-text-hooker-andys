@@ -20,7 +20,7 @@
 #include <ITH\HookManager.h>
 #include <ITH\mem.h>
 #include <ITH\IHF_SYS.h>
-#include <ITH\ITH_TLS.h>
+//#include <ITH\ITH_TLS.h>
 #include "ITH.h"
 extern HookManager* man;
 DWORD GetProcessPath(HANDLE hProc, LPWSTR path)
