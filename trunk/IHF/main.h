@@ -16,9 +16,9 @@
  */
 
 #pragma once
-#include <ITH\common.h>
-#include <ITH\ntdll.h>
-#include <ITH\IHF_SYS.h>
+#include "ITH\common.h"
+#include "ITH\ntdll.h"
+#include "ITH\IHF_SYS.h"
 #include "language.h"
 
 #define GLOBAL extern

@@ -18,8 +18,8 @@
 #include <intrin.h>
 #include "IHF_CLIENT.h"
 //#include "md5.h"
-#include <ITH\AVL.h>
-#include <ITH\ntdll.h>
+#include "ITH\AVL.h"
+#include "ITH\ntdll.h"
 #define HOOK_BUFFER_SIZE (MAX_HOOK*sizeof(TextHook))
 //#define MAX_HOOK (HOOK_BUFFER_SIZE/sizeof(TextHook))
 WCHAR dll_mutex[0x100];

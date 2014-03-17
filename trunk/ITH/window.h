@@ -17,10 +17,23 @@
 
 #pragma once
 #include "profile.h"
+#include "ITH.h"
+
 #include <windows.h>
-#include <ITH\main_template.h>
-#include <ITH\common.h>
-#include <ITH\CustomFilter.h>
+#include "resource.h"
+#include "language.h"
+#include <commctrl.h>
+#include <intrin.h>
+#include "ITH\main_template.h"
+#include "ITH\common.h"
+#include "ITH\CustomFilter.h"
+#include "ITH\IHF.h"
+#include "ITH\IHF_SYS.h"
+#include "ITH\Hash.h"
+#include "ITH\HookManager.h"
+#include "ITH\version.h"
+
+
 int GetHookString(LPWSTR str, DWORD pid, DWORD hook_addr, DWORD status);
 //SYSTEM_PROCESS_INFORMATION* GetBaseByPid(BYTE* pbBuffer,DWORD dwPid);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);

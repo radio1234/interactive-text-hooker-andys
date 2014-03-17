@@ -859,9 +859,126 @@ bool InsertBGI1Hook()
 }
 
 /**
- *  jichi 1/31/2014: Add hook for sweet light BRAVA!!
+ *  jichi 2/5/2014: Add an alternative BGI hook
+ *
+ *  Issue: This hook cannot extract character name for г‚ігѓ€гѓђгЃ®ж¶€гЃ€гЃџж—Ґ
+ *
+ *  See: http://tieba.baidu.com/p/2845113296
+ *  дё–з•ЊгЃЁдё–з•ЊгЃ®зњџг‚“дё­гЃ§
+ *  - /HSN4@349E0:sekachu.exe // Disabled BGI3, floating split char
+ *  - /HS-1C:-4@68E56 // Not used, cannot detect character name
+ *  - /HSC@34C80:sekachu.exe  // BGI2, extract both scenario and character names
+ *
+ *  [Lump of Sugar] дё–з•ЊгЃЁдё–з•ЊгЃ®зњџг‚“дё­гЃ§
+ *  /HSC@34C80:sekachu.exe
+ *  - addr: 216192 = 0x34c80
+ *  - module: 3599131534
+ *  - off: 12 = 0xc
+ *  - type: 65 = 0x41
+ *
+ *  base: 0x11a0000
+ *  hook_addr = base + addr = 0x11d4c80
+ *
+ *  011D4C7E     CC             INT3
+ *  011D4C7F     CC             INT3
+ *  011D4C80  /$ 55             PUSH EBP
+ *  011D4C81  |. 8BEC           MOV EBP,ESP
+ *  011D4C83  |. 6A FF          PUSH -0x1
+ *  011D4C85  |. 68 E6592601    PUSH sekachu.012659E6
+ *  011D4C8A  |. 64:A1 00000000 MOV EAX,DWORD PTR FS:[0]
+ *  011D4C90  |. 50             PUSH EAX
+ *  011D4C91  |. 81EC 300D0000  SUB ESP,0xD30
+ *  011D4C97  |. A1 D8C82801    MOV EAX,DWORD PTR DS:[0x128C8D8]
+ *  011D4C9C  |. 33C5           XOR EAX,EBP
+ *  011D4C9E  |. 8945 F0        MOV DWORD PTR SS:[EBP-0x10],EAX
+ *  011D4CA1  |. 53             PUSH EBX
+ *  011D4CA2  |. 56             PUSH ESI
+ *  011D4CA3  |. 57             PUSH EDI
+ *  011D4CA4  |. 50             PUSH EAX
+ *  011D4CA5  |. 8D45 F4        LEA EAX,DWORD PTR SS:[EBP-0xC]
+ *  011D4CA8  |. 64:A3 00000000 MOV DWORD PTR FS:[0],EAX
+ *  011D4CAE  |. 8B4D 0C        MOV ECX,DWORD PTR SS:[EBP+0xC]
+ *  011D4CB1  |. 8B55 18        MOV EDX,DWORD PTR SS:[EBP+0x18]
+ *  011D4CB4  |. 8B45 08        MOV EAX,DWORD PTR SS:[EBP+0x8]
+ *  011D4CB7  |. 8B5D 10        MOV EBX,DWORD PTR SS:[EBP+0x10]
+ *  011D4CBA  |. 8B7D 38        MOV EDI,DWORD PTR SS:[EBP+0x38]
+ *  011D4CBD  |. 898D D8F3FFFF  MOV DWORD PTR SS:[EBP-0xC28],ECX
+ *  011D4CC3  |. 8B4D 28        MOV ECX,DWORD PTR SS:[EBP+0x28]
+ *  011D4CC6  |. 8995 9CF3FFFF  MOV DWORD PTR SS:[EBP-0xC64],EDX
+ *  011D4CCC  |. 51             PUSH ECX
+ *  011D4CCD  |. 8B0D 305C2901  MOV ECX,DWORD PTR DS:[0x1295C30]
+ *  011D4CD3  |. 8985 E0F3FFFF  MOV DWORD PTR SS:[EBP-0xC20],EAX
+ *  011D4CD9  |. 8B45 1C        MOV EAX,DWORD PTR SS:[EBP+0x1C]
+ *  011D4CDC  |. 8D95 4CF4FFFF  LEA EDX,DWORD PTR SS:[EBP-0xBB4]
+ *  011D4CE2  |. 52             PUSH EDX
+ *  011D4CE3  |. 899D 40F4FFFF  MOV DWORD PTR SS:[EBP-0xBC0],EBX
+ *  011D4CE9  |. 8985 1CF4FFFF  MOV DWORD PTR SS:[EBP-0xBE4],EAX
+ *  011D4CEF  |. 89BD F0F3FFFF  MOV DWORD PTR SS:[EBP-0xC10],EDI
+ *  011D4CF5  |. E8 862EFDFF    CALL sekachu.011A7B80
+ *  011D4CFA  |. 33C9           XOR ECX,ECX
+ *  011D4CFC  |. 8985 60F3FFFF  MOV DWORD PTR SS:[EBP-0xCA0],EAX
+ *  011D4D02  |. 3BC1           CMP EAX,ECX
+ *  011D4D04  |. 0F84 0F1C0000  JE sekachu.011D6919
+ *  011D4D0A  |. E8 31F6FFFF    CALL sekachu.011D4340
+ *  011D4D0F  |. E8 6CF8FFFF    CALL sekachu.011D4580
+ *  011D4D14  |. 8985 64F3FFFF  MOV DWORD PTR SS:[EBP-0xC9C],EAX
+ *  011D4D1A  |. 8A03           MOV AL,BYTE PTR DS:[EBX]
+ *  011D4D1C  |. 898D 90F3FFFF  MOV DWORD PTR SS:[EBP-0xC70],ECX
+ *  011D4D22  |. 898D 14F4FFFF  MOV DWORD PTR SS:[EBP-0xBEC],ECX
+ *  011D4D28  |. 898D 38F4FFFF  MOV DWORD PTR SS:[EBP-0xBC8],ECX
+ *  011D4D2E  |. 8D71 01        LEA ESI,DWORD PTR DS:[ECX+0x1]
+ *  011D4D31  |. 3C 20          CMP AL,0x20
+ *  011D4D33  |. 7D 75          JGE SHORT sekachu.011D4DAA
+ *  011D4D35  |. 0FBEC0         MOVSX EAX,AL
+ *  011D4D38  |. 83C0 FE        ADD EAX,-0x2                             ;  Switch (cases 2..8)
+ *  011D4D3B  |. 83F8 06        CMP EAX,0x6
+ *  011D4D3E  |. 77 6A          JA SHORT sekachu.011D4DAA
+ *  011D4D40  |. FF2485 38691D0>JMP DWORD PTR DS:[EAX*4+0x11D6938]
+ */
+bool InsertBGI2Hook()
+{
+  const BYTE ins[] = {
+    0x3c, 0x20,      // 011d4d31  |. 3c 20          cmp al,0x20
+    0x7d, 0x75,      // 011d4d33  |. 7d 75          jge short sekachu.011d4daa
+    0x0f,0xbe,0xc0,  // 011d4d35  |. 0fbec0         movsx eax,al
+    0x83,0xc0, 0xfe, // 011d4d38  |. 83c0 fe        add eax,-0x2                             ;  switch (cases 2..8)
+    0x83,0xf8, 0x06, // 011d4d3b  |. 83f8 06        cmp eax,0x6
+    0x77, 0x6a       // 011d4d3e  |. 77 6a          ja short sekachu.011d4daa
+  };
+  enum { cur_ins_offset = 0x34c80 - 0x34d31 }; // distance to the beginning of the function
+  ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
+  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  //ITH_GROWL_DWORD(reladdr);
+  if (!reladdr) {
+    ConsoleOutput("vnreng:BGI2: pattern not found");
+    return false;
+  }
+  ULONG addr = module_base_ + reladdr + cur_ins_offset;
+  enum { push_ebp = 0x55 };  // 011d4c80  /$ 55             push ebp
+  if (*(BYTE *)addr != push_ebp) {
+    ConsoleOutput("vnreng:BGI2: pattern found but the function offset is invalid");
+    return false;
+  }
+
+  HookParam hp = {};
+  hp.type = USING_STRING;
+  hp.off = 0xc;
+  hp.addr = addr;
+
+  //ITH_GROWL_DWORD2(hp.addr, module_base_);
+
+  ConsoleOutput("vnreng: INSERT BGI2");
+  NewHook(hp, L"BGI2");
+  return true;
+}
+
+#if 0
+/**
+ *  jichi 1/31/2014: Add a new BGI hook
  *  See: http://www.hongfire.com/forum/showthread.php/36807-AGTH-text-extraction-tool-for-games-translation/page702
  *  See: http://www.hongfire.com/forum/showthread.php/36807-AGTH-text-extraction-tool-for-games-translation/page716
+ *
+ *  Issue: This hook has floating split char
  *
  *  [гЃ·гЃЎгЃ‘г‚Ќ] г‚ігѓ€гѓђгЃ®ж¶€гЃ€гЃџж—Ґ пЅћеїѓгЃѕгЃ§иЈёгЃ«гЃ™г‚‹зґ”ж„›иЄїж•™пЅћдЅ“йЁ“з‰€
  *  /HS-1C:-4@68E56:BGI.exe
@@ -899,7 +1016,7 @@ bool InsertBGI1Hook()
  *  00E88E6E  |. 5D             POP EBP
  *  00E88E6F  \. C3             RETN
  */
-bool InsertBGI2Hook()
+bool InsertBGI3Hook()
 {
   const BYTE ins[] = {
     0x83,0xc4, 0x08,// 00e88e56  |. 83c4 08        add esp,0x8 ; hook here
@@ -922,7 +1039,7 @@ bool InsertBGI2Hook()
   ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
   //reladdr = 0x68e56;
   if (!reladdr) {
-    ConsoleOutput("vnreng:BGI2: pattern not found");
+    ConsoleOutput("vnreng:BGI3: pattern not found");
     return false;
   }
 
@@ -934,10 +1051,11 @@ bool InsertBGI2Hook()
 
   //ITH_GROWL_DWORD2(hp.addr, module_base_);
 
-  ConsoleOutput("vnreng: INSERT BGI2");
-  NewHook(hp, L"BGI2");
+  ConsoleOutput("vnreng: INSERT BGI3");
+  NewHook(hp, L"BGI3");
   return true;
 }
+#endif // 0
 } // unnamed
 
 // Insert both hooks since I am not sure if BG1 games also have BG2 patterns
@@ -946,6 +1064,7 @@ bool InsertBGIHook()
 {
   bool ok = InsertBGI1Hook();
   ok = InsertBGI2Hook() || ok;
+  //ok = InsertBGI3Hook() || ok;
   return ok;
 }
 
