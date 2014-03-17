@@ -17,8 +17,8 @@
 #pragma once
 //#include <windows.h>
 #define IHF
-#include <ITH\IHF_DLL.h>
-#include <ITH\IHF_SYS.h>
+#include "ITH\IHF_DLL.h"
+#include "ITH\IHF_SYS.h"
 
 #define HEADER_SIZE 0xC
 extern int current_hook;

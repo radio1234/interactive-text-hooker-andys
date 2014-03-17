@@ -350,7 +350,7 @@ int FillRange(LPWSTR name,DWORD* lower, DWORD* upper)
 	}
 	return 0;
 }
-DWORD SearchPattern(DWORD base, DWORD base_length, LPVOID search, DWORD search_length) //KMP
+DWORD SearchPattern(DWORD base, DWORD base_length, LPVOID search, DWORD search_length) // KMP
 {
 	__asm
 	{
@@ -418,6 +418,92 @@ finish:
 		add esp,ecx
 	}
 }
+
+// jichi 2/5/2014: '?' = 0xff
+// See: http://sakuradite.com/topic/124
+DWORD SearchPatternEx(DWORD base, DWORD base_length, LPCVOID search, DWORD search_length, BYTE wildcard) // KMP
+{
+  __asm
+  {
+    // jichi 2/5/2014 BEGIN
+    mov bl,wildcard
+    // jichi 2/5/2014 END
+    mov eax,search_length
+alloc:
+    push 0
+    sub eax,1
+    jnz alloc // jichi 2/5/2014: this will also set %eax to zero
+
+    mov edi,search
+    mov edx,search_length
+    mov ecx,1
+    xor esi,esi
+build_table:
+    mov al,byte ptr [edi+esi]
+    cmp al,byte ptr [edi+ecx]
+    sete al
+    test esi,esi
+    jz pre
+    test al,al
+    jnz pre
+    mov esi,[esp+esi*4-4]
+    jmp build_table
+pre:
+    test al,al
+    jz write_table
+    inc esi
+write_table:
+    mov [esp+ecx*4],esi
+
+    inc ecx
+    cmp ecx,edx
+    jb build_table
+
+    mov esi,base
+    xor edx,edx
+    mov ecx,edx
+matcher:
+    mov al,byte ptr [edi+ecx] // search
+    // jichi 2/5/2014 BEGIN
+    mov bh, al // save loaded byte to reduce cache access. %ah is not used and always zero
+    cmp al,bl // bl is the wildcard byte
+    sete al
+    test al,al
+    jnz wildcard_matched
+    mov al, bh // restore the loaded byte
+    // jichi 2/5/2014 END
+    cmp al,byte ptr [esi+edx] // base
+    sete al
+    // jichi 2/5/2014 BEGIN
+wildcard_matched:
+    // jichi 2/5/2014 END
+    test ecx,ecx
+    jz match
+    test al,al
+    jnz match
+    mov ecx, [esp+ecx*4-4]
+    jmp matcher
+match:
+    test al,al
+    jz pre2
+    inc ecx
+    cmp ecx,search_length
+    je finish
+pre2:
+    inc edx
+    cmp edx,base_length // search_length
+    jb matcher
+    mov edx,search_length
+    dec edx
+finish:
+    mov ecx,search_length
+    sub edx,ecx
+    lea eax,[edx+1]
+    lea ecx,[ecx*4]
+    add esp,ecx
+  }
+}
+
 DWORD IthGetMemoryRange(LPVOID mem, DWORD* base, DWORD* size)
 {
 	DWORD r;

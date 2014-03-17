@@ -14,17 +14,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ITH.h"
 #include "window.h"
-#include "resource.h"
-#include "language.h"
-#include <commctrl.h>
-#include <intrin.h>
-#include <ITH\IHF.h>
-#include <ITH\IHF_SYS.h>
-#include <ITH\Hash.h>
-#include <ITH\HookManager.h>
-#include <ITH\version.h>
+
 #define CMD_SIZE 0x200
 
 LPWSTR import_buffer;

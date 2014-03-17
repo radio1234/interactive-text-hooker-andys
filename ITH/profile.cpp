@@ -16,12 +16,10 @@
  */
 
 
-#include "ITH.h"
-#include <ITH\IHF.h>
-#include <ITH\IHF_SYS.h>
-#include <ITH\Hash.h>
-#include <ITH\ntdll.h>
+
 #include "profile.h"
+
+
 extern bool Parse(LPWSTR cmd, HookParam& hp);
 
 bool MonitorFlag;

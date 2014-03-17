@@ -18,10 +18,17 @@
 #pragma once
 
 #include <windows.h>
-#include <ITH\AVL.h>
-#include <ITH\common.h>
-#include <ITH\tinyxml.h>
+#include "ITH\AVL.h"
+#include "ITH\common.h"
+#include "ITH\tinyxml.h"
 #include "PointerTable.h"
+
+#include "ITH.h"
+#include "ITH\IHF.h"
+#include "ITH\IHF_SYS.h"
+#include "ITH\Hash.h"
+#include "ITH\ntdll.h"
+
 #define THREAD_MASK_RETN 1
 #define THREAD_MASK_SPLIT 2
 struct HookProfile
