@@ -17,6 +17,7 @@
 
 #pragma once
 #include <ITH\common.h>
+#include "common\const.h"
 #ifdef IHF
 #define IHFAPI __declspec(dllexport) __stdcall
 #else
@@ -28,7 +29,7 @@ extern "C" {
 	DWORD IHFAPI OutputDWORD(DWORD d);
 	DWORD IHFAPI OutputRegister(DWORD *base);
 	DWORD IHFAPI NotifyHookInsert(DWORD addr);
-	DWORD IHFAPI NewHook(const HookParam& hp, LPWSTR name=0, DWORD flag=HOOK_ENGINE);
+	DWORD IHFAPI NewHook(const HookParam& hp, LPCWSTR name=0, DWORD flag=HOOK_ENGINE);
 	DWORD IHFAPI RemoveHook(DWORD addr);
 	DWORD IHFAPI RegisterEngineModule(DWORD base, DWORD idEngine, DWORD dnHook);
 	DWORD IHFAPI SwitchTrigger(DWORD on);

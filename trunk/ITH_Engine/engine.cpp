@@ -16,6 +16,8 @@
  */
 
 #include "engine.h"
+#include "common\const.h"
+#include "cc\ccmacro.h"
 
 static wchar_t engine_version[] = L"3.1.0000";
 enum { MAX_REL_ADDR = 0x300000 };
@@ -185,6 +187,14 @@ static EXCEPTION_DISPOSITION ExceptHandler(EXCEPTION_RECORD *ExceptionRecord,voi
 	return ExceptionContinueExecution;
 }
 
+// jichi 3/11/2014: The original FindEntryAligned function could raise exceptions without admin priv
+DWORD SafeFindEntryAligned(DWORD start, DWORD back_range)
+{
+  DWORD ret = 0;
+  ret = Util::FindEntryAligned(start, back_range);
+  return ret;
+}
+
 
 DWORD IdentifyEngine()
 {
@@ -216,6 +226,8 @@ seh_recover:
 
 //******    DETECT FUNCTIONS DOWN HERE (
 
+
+
 DWORD DetermineEngineType()
 {
 	WCHAR engine_info[0x100];
@@ -236,7 +248,7 @@ DWORD DetermineEngineType()
 	return 0;
 }
 
-
+// Copy/Paste from VNR down here
 
 DWORD InsertDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
 { return !trigger_fun_(addr,frame,stack); }
@@ -266,10 +278,6 @@ DWORD DetermineEngineByFile1()
     InsertWolfHook();
     return yes;
   }
-  if (IthCheckFile(L"message.dat")) {
-    InsertAtelierHook();
-    return yes;
-  }
   if (IthCheckFile(L"advdata\\dat\\names.dat")) {
     InsertCircusHook1();
     return yes;
@@ -288,6 +296,14 @@ DWORD DetermineEngineByFile1()
   }
   if (IthFindFile(L"*.int")) {
     InsertCatSystem2Hook();
+    return yes;
+  }
+  if (IthCheckFile(L"message.dat")) {
+    InsertAtelierHook();
+    return yes;
+  }
+  if (IthCheckFile(L"Check.mdx")) { // jichi 4/1/2014: AUGame
+    InsertAUHook();
     return yes;
   }
   // jichi 12/25/2013: It may or may not be QLIE.
@@ -335,7 +351,7 @@ DWORD DetermineEngineByFile2()
     return yes;
   }
   if (IthFindFile(L"pac\\*.ypf") || IthFindFile(L"*.ypf")) {
-    // jichi 8/14/2013: CLOCLUP: "гѓЋгѓјгѓ–гѓ¬г‚№г‚Єгѓ–гѓЄгѓјг‚ёгѓҐ" would crash the game.
+    // jichi 8/14/2013: CLOCLUP: "ノーブレスオブリージュ" would crash the game.
     if (!IthCheckFile(L"noblesse.exe"))
       InsertWhirlpoolHook();
     return yes;
@@ -460,7 +476,7 @@ DWORD DetermineEngineByProcessName()
     return yes;
   }
 
-  // jichi 8/19/2013: DO NOT WORK for games likeгЂЊгѓЏгѓ”гѓЎг‚ўгЂЌ
+  // jichi 8/19/2013: DO NOT WORK for games like「ハピメア」
   //if (wcsstr(str,L"cmvs32") || wcsstr(str,L"cmvs64")) {
   //  InsertCMVSHook();
   //  return yes;
@@ -594,12 +610,26 @@ DWORD DetermineNoHookEngine()
 {
   enum : DWORD { yes = 0, no = 1 }; // return value
 
-  if (IthCheckFile(L"bsz.exe")) return yes; // jichi 12/3/2013: BALDRSKY ZERO
+  if (IthCheckFile(L"bsz.exe")) { // jichi 12/3/2013: BALDRSKY ZERO
+    ConsoleOutput("vnreng: IGNORE BALDRSKY ZERO");
+    return yes;
+  }
+
+  if (IthCheckFile(L"AGERC.DLL")) { // jichi 3/17/2014: Eushully, AGE.EXE
+    ConsoleOutput("vnreng: IGNORE Eushully");
+    return yes;
+  }
+
+  if (IthCheckFile(L"EAGLS.dll")) { // jichi 3/24/2014: E.A.G.L.S
+    ConsoleOutput("vnreng: IGNORE EAGLS");
+    return yes;
+  }
 
   if (IthCheckFile(L"game_sys.exe")) {
     ConsoleOutput("vnreng: IGNORE Atelier Kaguya BY/TH");
     return yes;
   }
+
   if (IthFindFile(L"*.ykc")) {
     ConsoleOutput("vnreng: IGNORE YKC:Feng/HookSoft(SMEE)");
     return yes;
@@ -618,6 +648,12 @@ DWORD DetermineNoHookEngine()
       return yes;
     }
   }
+
+  if (wcsstr(process_name_, L"lcsebody") || !wcsncmp(process_name_, L"lcsebo~", 7)) { // jichi 3/19/2014: lcsebody.exe, GetGlyphOutlineA
+    ConsoleOutput("vnreng: IGNORE lcsebody");
+    return yes;
+  }
+
   wchar_t str[MAX_PATH];
   DWORD i;
   for (i = 0; process_name_[i]; i++) {
@@ -628,7 +664,7 @@ DWORD DetermineNoHookEngine()
   *(DWORD *)(str + i + 1) = 0x630068; //.hcb
   *(DWORD *)(str + i + 3) = 0x62;
   if (IthCheckFile(str)) {
-    ConsoleOutput("vnreng: IGNORE FVP"); // jichi 10/3/2013: such like г‚ўгѓ€гѓЄг‚ЁгЃ‹гЃђг‚„
+    ConsoleOutput("vnreng: IGNORE FVP"); // jichi 10/3/2013: such like アトリエかぐや
     return yes;
   }
   return no;
@@ -737,8 +773,8 @@ void FindKiriKiriHook(DWORD fun, DWORD size, DWORD pt, DWORD flag)
 
 void InsertKiriKiriHook()
 {
-  FindKiriKiriHook((DWORD)GetGlyphOutlineW,      module_limit_ - module_base_, module_base_, 0);
-  FindKiriKiriHook((DWORD)GetTextExtentPoint32W, module_limit_ - module_base_, module_base_, 1);
+  FindKiriKiriHook((DWORD)GetGlyphOutlineW,      module_limit_ - module_base_, module_base_, 0); // KiriKiri1
+  FindKiriKiriHook((DWORD)GetTextExtentPoint32W, module_limit_ - module_base_, module_base_, 1); // KiriKiri2
   //RegisterEngineType(ENGINE_KIRIKIRI);
 }
 
@@ -819,7 +855,7 @@ bool InsertBGI1Hook()
     if (ib[0] == 0x3D) {
       i++;
       if (id[0] == 0xffff) { //cmp eax,0xffff
-        hp.addr = Util::FindEntryAligned(i, 0x40);
+        hp.addr = SafeFindEntryAligned(i, 0x40);
         if (hp.addr) {
           hp.off = 0xc;
           hp.split = -0x18;
@@ -835,7 +871,7 @@ bool InsertBGI1Hook()
     if (ib[0] == 0x81 && ((ib[1] & 0xf8) == 0xf8)) {
       i += 2;
       if (id[0] == 0xffff) { //cmp reg,0xffff
-        hp.addr = Util::FindEntryAligned(i, 0x40);
+        hp.addr = SafeFindEntryAligned(i, 0x40);
         if (hp.addr) {
           hp.off = 0xc;
           hp.split = -0x18;
@@ -861,15 +897,15 @@ bool InsertBGI1Hook()
 /**
  *  jichi 2/5/2014: Add an alternative BGI hook
  *
- *  Issue: This hook cannot extract character name for г‚ігѓ€гѓђгЃ®ж¶€гЃ€гЃџж—Ґ
+ *  Issue: This hook cannot extract character name for コトバの消えた日
  *
  *  See: http://tieba.baidu.com/p/2845113296
- *  дё–з•ЊгЃЁдё–з•ЊгЃ®зњџг‚“дё­гЃ§
+ *  世界と世界の真ん中で
  *  - /HSN4@349E0:sekachu.exe // Disabled BGI3, floating split char
  *  - /HS-1C:-4@68E56 // Not used, cannot detect character name
  *  - /HSC@34C80:sekachu.exe  // BGI2, extract both scenario and character names
  *
- *  [Lump of Sugar] дё–з•ЊгЃЁдё–з•ЊгЃ®зњџг‚“дё­гЃ§
+ *  [Lump of Sugar] 世界と世界の真ん中で
  *  /HSC@34C80:sekachu.exe
  *  - addr: 216192 = 0x34c80
  *  - module: 3599131534
@@ -881,7 +917,7 @@ bool InsertBGI1Hook()
  *
  *  011D4C7E     CC             INT3
  *  011D4C7F     CC             INT3
- *  011D4C80  /$ 55             PUSH EBP
+ *  011D4C80  /$ 55             PUSH EBP    ; jichi: hook here
  *  011D4C81  |. 8BEC           MOV EBP,ESP
  *  011D4C83  |. 6A FF          PUSH -0x1
  *  011D4C85  |. 68 E6592601    PUSH sekachu.012659E6
@@ -945,16 +981,16 @@ bool InsertBGI2Hook()
     0x83,0xf8, 0x06, // 011d4d3b  |. 83f8 06        cmp eax,0x6
     0x77, 0x6a       // 011d4d3e  |. 77 6a          ja short sekachu.011d4daa
   };
-  enum { cur_ins_offset = 0x34c80 - 0x34d31 }; // distance to the beginning of the function
+  enum { hook_offset = 0x34c80 - 0x34d31 }; // distance to the beginning of the function
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //ITH_GROWL_DWORD(reladdr);
   if (!reladdr) {
     ConsoleOutput("vnreng:BGI2: pattern not found");
     return false;
   }
-  ULONG addr = module_base_ + reladdr + cur_ins_offset;
-  enum { push_ebp = 0x55 };  // 011d4c80  /$ 55             push ebp
+  ULONG addr = module_base_ + reladdr + hook_offset;
+  enum : BYTE { push_ebp = 0x55 };  // 011d4c80  /$ 55             push ebp
   if (*(BYTE *)addr != push_ebp) {
     ConsoleOutput("vnreng:BGI2: pattern found but the function offset is invalid");
     return false;
@@ -980,7 +1016,7 @@ bool InsertBGI2Hook()
  *
  *  Issue: This hook has floating split char
  *
- *  [гЃ·гЃЎгЃ‘г‚Ќ] г‚ігѓ€гѓђгЃ®ж¶€гЃ€гЃџж—Ґ пЅћеїѓгЃѕгЃ§иЈёгЃ«гЃ™г‚‹зґ”ж„›иЄїж•™пЅћдЅ“йЁ“з‰€
+ *  [ぷちけろ] コトバの消えた日 ～心まで裸にする純愛調教～体験版
  *  /HS-1C:-4@68E56:BGI.exe
  *  - addr: 429654 (0x68e56)
  *  - module: 3927275266 (0xea157702)
@@ -1034,9 +1070,9 @@ bool InsertBGI3Hook()
     //0x5d,           // 00e88e6e  |. 5d             pop ebp
     //0xc3            // 00e88e6f  \. c3             retn
   };
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //reladdr = 0x68e56;
   if (!reladdr) {
     ConsoleOutput("vnreng:BGI3: pattern not found");
@@ -1047,7 +1083,7 @@ bool InsertBGI3Hook()
   hp.type = USING_STRING|USING_SPLIT;
   hp.off = -0x20;
   hp.split = -0x8;
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
 
   //ITH_GROWL_DWORD2(hp.addr, module_base_);
 
@@ -1058,14 +1094,13 @@ bool InsertBGI3Hook()
 #endif // 0
 } // unnamed
 
-// Insert both hooks since I am not sure if BG1 games also have BG2 patterns
-// BG1 hook is harmless to BG2 any way
+// jichi 1/31/2014: Insert both hooks since I am not sure if BG1 games also have BG2 patterns
+// The BG1 hook is harmless to BG2 any way
 bool InsertBGIHook()
 {
-  bool ok = InsertBGI1Hook();
-  ok = InsertBGI2Hook() || ok;
-  //ok = InsertBGI3Hook() || ok;
-  return ok;
+  bool b1 = InsertBGI1Hook(),
+       b2 = InsertBGI2Hook();
+  return b1 || b2; // prevent conditional shortcut
 }
 
 /********************************************************************************************
@@ -1085,7 +1120,7 @@ bool InsertRealliveDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
   if (DWORD i = frame) {
     i = *(DWORD *)(i + 4);
     for (DWORD j = i; j > i - 0x100; j--)
-      if (*(WORD*)j==0xEC83) {
+      if (*(WORD *)j==0xec83) {
         HookParam hp = {};
         hp.addr = j;
         hp.off = 0x14;
@@ -1116,6 +1151,7 @@ void InsertRealliveHook()
 /**
  *  jichi 8/16/2013: Insert new siglus hook
  *  See (CaoNiMaGeBi): http://tieba.baidu.com/p/2531786952
+ *  Issue: floating text
  *  Example:
  *  0153588b9534fdffff8b43583bd7
  *  0153 58          add dword ptr ds:[ebx+58],edx
@@ -1146,14 +1182,14 @@ bool InsertSiglus2Hook()
   //  0x3b,0xd7                       // 3bd7             cmp edx,edi ; hook here
   //};
   //enum { cur_ins_size = 2 };
-  //enum { cur_ins_offset = sizeof(ins) - cur_ins_size }; // = 14 - 2  = 12, current inst is the last one
+  //enum { hook_offset = sizeof(ins) - cur_ins_size }; // = 14 - 2  = 12, current inst is the last one
   const BYTE ins[] = {
-    0x3b,0xd7,  // cmp edx,edi
+    0x3b,0xd7,  // cmp edx,edi ; hook here
     0x75,0x4b   // jnz short
   };
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   if (!reladdr) {
     ConsoleOutput("vnreng:Siglus2: pattern not found");
     //ConsoleOutput("Not SiglusEngine2");
@@ -1161,10 +1197,10 @@ bool InsertSiglus2Hook()
   }
 
   HookParam hp = {};
-  hp.type = USING_UNICODE;
+  hp.type = USING_UNICODE; //|NO_CONTEXT; // jichi 3/8/2014: Use no_context to prevent floating threads.
   hp.length_offset = 1;
   hp.off = -0x20;
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
 
   //index = SearchPattern(module_base_, size,ins, sizeof(ins));
   //ITH_GROWL_DWORD2(base, index);
@@ -1199,7 +1235,7 @@ bool InsertSiglus1Hook()
   //const BYTE ins[8]={0x33,0xC0,0x8B,0xF9,0x89,0x7C,0x24}; // jichi 8/18/2013: wrong count?
   const BYTE ins[]={0x33,0xc0,0x8b,0xf9,0x89,0x7c,0x24};
   ULONG range = max(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   if (!reladdr) { // jichi 8/17/2013: Add "== 0" check to prevent breaking new games
     //ConsoleOutput("Unknown SiglusEngine");
     ConsoleOutput("vnreng:Siglus: pattern not found");
@@ -1269,39 +1305,189 @@ static void SpecialHookMajiro(DWORD esp_base, HookParam* hp, DWORD* data, DWORD*
     mov [ecx],edx
   }
 }
-void InsertMajiroHook()
+bool InsertMajiroHook()
 {
-  HookParam hp = {};
+  DWORD addr = Util::FindCallAndEntryAbs((DWORD)TextOutA,module_limit_-module_base_,module_base_,0xec81);
+  if (!addr) {
+    ConsoleOutput("vnreng:MAJIRO: failed");
+    return false;
+  }
 
+  HookParam hp = {};
   //hp.off=0xC;
   //hp.split=4;
   //hp.split_ind=0x28;
   //hp.type|=USING_STRING|USING_SPLIT|SPLIT_INDIRECT;
-  hp.addr = Util::FindCallAndEntryAbs((DWORD)TextOutA,module_limit_-module_base_,module_base_,0xEC81);
+  hp.addr = addr;
   hp.type = EXTERN_HOOK;
   hp.extern_fun = SpecialHookMajiro;
   ConsoleOutput("vnreng: INSERT MAJIRO");
   NewHook(hp, L"MAJIRO");
   //RegisterEngineType(ENGINE_MAJIRO);
+  return true;
 }
+
 /********************************************************************************************
 CMVS hook:
   Process name is cmvs.exe or cnvs.exe or cmvs*.exe. Used by PurpleSoftware games.
 
   Font caching issue. Find call to GetGlyphOutlineA and the function entry.
 ********************************************************************************************/
-void InsertCMVSHook()
+
+namespace { // anonymous
+
+// jichi 3/6/2014: This is the original CMVS hook in ITH
+// It does not work for パープルソフトウェア games after しあわせ家族部 (2012)
+bool InsertCMVS1Hook()
 {
-  HookParam hp={};
-  hp.off=0x8;
-  hp.split=-0x18;
-  hp.type|=BIG_ENDIAN|USING_SPLIT;
-  hp.length_offset=1;
-  hp.addr = Util::FindCallAndEntryAbs((DWORD)GetGlyphOutlineA,module_limit_-module_base_,module_base_,0xEC83);
-  ConsoleOutput("vnreng: INSERT CMVS");
+  DWORD addr = Util::FindCallAndEntryAbs((DWORD)GetGlyphOutlineA, module_limit_ - module_base_, module_base_, 0xec83);
+  if (!addr) {
+    ConsoleOutput("vnreng:CMVS1: failed");
+    return false;
+  }
+  HookParam hp = {};
+  hp.addr = addr;
+  hp.off = 0x8;
+  hp.split = -0x18;
+  hp.type = BIG_ENDIAN|USING_SPLIT;
+  hp.length_offset= 1 ;
+
+  ConsoleOutput("vnreng: INSERT CMVS1");
   NewHook(hp, L"CMVS");
   //RegisterEngineType(ENGINE_CMVS);
+  return true;
 }
+
+/**
+ *  CMSV
+ *  Sample games:
+ *  ハピメア: /HAC@48FF3:cmvs32.exe
+ *  ハピメアFD: /HB-1C*0@44EE95
+ *
+ *  Optional: ハピメアFD: /HB-1C*0@44EE95
+ *  This hook has issue that the text will be split to a large amount of threads
+ *  - length_offset: 1
+ *  - off: 4294967264 = 0xffffffe0 = -0x20
+ *  - type: 8
+ *
+ *  ハピメア: /HAC@48FF3:cmvs32.exe
+ *  base: 0x400000
+ *  - length_offset: 1
+ *  - off: 12 = 0xc
+ *  - type: 68 = 0x44
+ *
+ *  00448fee     cc             int3
+ *  00448fef     cc             int3
+ *  00448ff0  /$ 55             push ebp
+ *  00448ff1  |. 8bec           mov ebp,esp
+ *  00448ff3  |. 83ec 68        sub esp,0x68 ; jichi: hook here
+ *  00448ff6  |. 8b01           mov eax,dword ptr ds:[ecx]
+ *  00448ff8  |. 56             push esi
+ *  00448ff9  |. 33f6           xor esi,esi
+ *  00448ffb  |. 33d2           xor edx,edx
+ *  00448ffd  |. 57             push edi
+ *  00448ffe  |. 894d fc        mov dword ptr ss:[ebp-0x4],ecx
+ *  00449001  |. 3bc6           cmp eax,esi
+ *  00449003  |. 74 37          je short cmvs32.0044903c
+ *  00449005  |> 66:8b78 08     /mov di,word ptr ds:[eax+0x8]
+ *  00449009  |. 66:3b7d 0c     |cmp di,word ptr ss:[ebp+0xc]
+ *  0044900d  |. 75 0a          |jnz short cmvs32.00449019
+ *  0044900f  |. 66:8b7d 10     |mov di,word ptr ss:[ebp+0x10]
+ *  00449013  |. 66:3978 0a     |cmp word ptr ds:[eax+0xa],di
+ *  00449017  |. 74 0a          |je short cmvs32.00449023
+ *  00449019  |> 8bd0           |mov edx,eax
+ *  0044901b  |. 8b00           |mov eax,dword ptr ds:[eax]
+ *  0044901d  |. 3bc6           |cmp eax,esi
+ *  0044901f  |.^75 e4          \jnz short cmvs32.00449005
+ *  00449021  |. eb 19          jmp short cmvs32.0044903c
+ *  00449023  |> 3bd6           cmp edx,esi
+ *  00449025  |. 74 0a          je short cmvs32.00449031
+ *  00449027  |. 8b38           mov edi,dword ptr ds:[eax]
+ *  00449029  |. 893a           mov dword ptr ds:[edx],edi
+ *  0044902b  |. 8b11           mov edx,dword ptr ds:[ecx]
+ *  0044902d  |. 8910           mov dword ptr ds:[eax],edx
+ *  0044902f  |. 8901           mov dword ptr ds:[ecx],eax
+ *  00449031  |> 8b40 04        mov eax,dword ptr ds:[eax+0x4]
+ *  00449034  |. 3bc6           cmp eax,esi
+ *  00449036  |. 0f85 64010000  jnz cmvs32.004491a0
+ *  0044903c  |> 8b55 08        mov edx,dword ptr ss:[ebp+0x8]
+ *  0044903f  |. 53             push ebx
+ *  00449040  |. 0fb75d 0c      movzx ebx,word ptr ss:[ebp+0xc]
+ *  00449044  |. b8 00000100    mov eax,0x10000
+ *  00449049  |. 8945 e4        mov dword ptr ss:[ebp-0x1c],eax
+ *  0044904c  |. 8945 f0        mov dword ptr ss:[ebp-0x10],eax
+ *  0044904f  |. 8d45 e4        lea eax,dword ptr ss:[ebp-0x1c]
+ *  00449052  |. 50             push eax                                 ; /pMat2
+ *  00449053  |. 56             push esi                                 ; |Buffer
+ *  00449054  |. 56             push esi                                 ; |BufSize
+ *  00449055  |. 8d4d d0        lea ecx,dword ptr ss:[ebp-0x30]          ; |
+ *  00449058  |. 51             push ecx                                 ; |pMetrics
+ *  00449059  |. 6a 05          push 0x5                                 ; |Format = GGO_GRAY4_BITMAP
+ *  0044905b  |. 53             push ebx                                 ; |Char
+ *  0044905c  |. 52             push edx                                 ; |hDC
+ *  0044905d  |. 8975 e8        mov dword ptr ss:[ebp-0x18],esi          ; |
+ *  00449060  |. 8975 ec        mov dword ptr ss:[ebp-0x14],esi          ; |
+ *  00449063  |. ff15 5cf05300  call dword ptr ds:[<&gdi32.getglyphoutli>; \GetGlyphOutlineA ; jichi 3/7/2014: Should I hook here?
+ *  00449069  |. 8b75 10        mov esi,dword ptr ss:[ebp+0x10]
+ *  0044906c  |. 0faff6         imul esi,esi
+ *  0044906f  |. 8bf8           mov edi,eax
+ *  00449071  |. 8d04bd 0000000>lea eax,dword ptr ds:[edi*4]
+ *  00449078  |. 3bc6           cmp eax,esi
+ *  0044907a  |. 76 02          jbe short cmvs32.0044907e
+ *  0044907c  |. 8bf0           mov esi,eax
+ *  0044907e  |> 56             push esi                                 ; /Size
+ *  0044907f  |. 6a 00          push 0x0                                 ; |Flags = LMEM_FIXED
+ *  00449081  |. ff15 34f25300  call dword ptr ds:[<&kernel32.localalloc>; \LocalAlloc
+ */
+bool InsertCMVS2Hook()
+{
+  // There are multiple functions satisfy the pattern below.
+  // Hook to any one of them is OK.
+  const BYTE ins[] = {  // function begin
+    0x55,               // 00448ff0  /$ 55             push ebp
+    0x8b,0xec,          // 00448ff1  |. 8bec           mov ebp,esp
+    0x83,0xec, 0x68,    // 00448ff3  |. 83ec 68        sub esp,0x68 ; jichi: hook here
+    0x8b,0x01,          // 00448ff6  |. 8b01           mov eax,dword ptr ds:[ecx]
+    0x56,               // 00448ff8  |. 56             push esi
+    0x33,0xf6,          // 00448ff9  |. 33f6           xor esi,esi
+    0x33,0xd2,          // 00448ffb  |. 33d2           xor edx,edx
+    0x57,               // 00448ffd  |. 57             push edi
+    0x89,0x4d, 0xfc,    // 00448ffe  |. 894d fc        mov dword ptr ss:[ebp-0x4],ecx
+    0x3b,0xc6,          // 00449001  |. 3bc6           cmp eax,esi
+    0x74, 0x37          // 00449003  |. 74 37          je short cmvs32.0044903c
+  };
+  enum { hook_offset = 3 }; // offset from the beginning of the function
+  ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
+  if (!reladdr) {
+    ConsoleOutput("vnreng:CMVS2: pattern not found");
+    return false;
+  }
+
+  //reladdr = 0x48ff0;
+  //reladdr = 0x48ff3;
+  HookParam hp = {};
+  hp.addr = module_base_ + reladdr + hook_offset;
+  hp.off = 0xc;
+  hp.type = BIG_ENDIAN;
+  hp.length_offset= 1 ;
+
+  ConsoleOutput("vnreng: INSERT CMVS2");
+  NewHook(hp, L"CMVS2");
+  return true;
+}
+
+} // anonymous namespace
+
+// jichi 3/7/2014: Insert the old hook first since GetGlyphOutlineA can NOT be found in new games
+bool InsertCMVSHook()
+{
+  // Both CMVS1 and CMVS2 exists in new games.
+  // Insert the CMVS2 first. Since CMVS1 could break CMVS2
+  // And the CMVS1 games do not have CMVS2 patterns.
+  return InsertCMVS2Hook() || InsertCMVS1Hook();
+}
+
 /********************************************************************************************
 rUGP hook:
   Process name is rugp.exe. Used by AGE/GIGA games.
@@ -1356,7 +1542,7 @@ bool InsertRUGPHook()
   if (t != range) { // jichi 10/1/2013: Changed to compare with 0x20000
     if (*(s - 2) != 0x81)
       return false;
-    if (DWORD i = Util::FindEntryAligned((DWORD)s, 0x200)) {
+    if (DWORD i = SafeFindEntryAligned((DWORD)s, 0x200)) {
       HookParam hp = {};
       hp.addr = i;
       //hp.off= -8;
@@ -1510,7 +1696,7 @@ bool InsertAliceHook()
 /**
  *  jichi 12/26/2013: Rance hook
  *
- *  гѓ©гѓіг‚№01 е…‰г‚’г‚‚гЃЁг‚ЃгЃ¦: /HSN4:-14@5506A9
+ *  ランス01 光をもとめて: /HSN4:-14@5506A9
  *  - addr: 5572265 (0x5596a9)
  *  - off: 4
  *  - split: 4294967272 (0xffffffe8 = -0x18)
@@ -1526,7 +1712,7 @@ bool InsertAliceHook()
  *    005506B6  \. C2 0400        RETN 0x4
  *    005506B9     CC             INT3
  *
- *  гѓ©гѓіг‚№гѓ»г‚Їг‚Ёг‚№гѓ€: /HSN4:-14@42E08A
+ *  ランス・クエスト: /HSN4:-14@42E08A
  *    0042E08A  |. E8 91ED1F00    CALL RanceQue.0062CE20 ; hook here
  *    0042E08F  |. 83C4 0C        ADD ESP,0xC
  *    0042E092  |. 5F             POP EDI
@@ -1547,20 +1733,20 @@ bool InsertSystem43Hook()
     0xc2, 0x04,0x00,    //   005506b6  \. c2 0400        retn 0x4
     0xcc, 0xcc // patching a few int3 to make sure that this is at the end of the code block
   };
-  enum { cur_ins_offset = -5 }; // the function call before the ins
+  enum { hook_offset = -5 }; // the function call before the ins
   ULONG addr = module_base_; //- sizeof(ins);
   //addr = 0x5506a9;
   do {
     //addr += sizeof(ins); // ++ so that each time return diff address
     ULONG range = min(module_limit_ - addr, MAX_REL_ADDR);
-    ULONG offset = SearchPattern(addr, range, (LPVOID)ins, sizeof(ins));
+    ULONG offset = SearchPattern(addr, range, ins, sizeof(ins));
     if (!offset) {
       //ITH_MSG(L"failed");
       ConsoleOutput("vnreng:System43: pattern not found");
       return false;
     }
 
-    addr += offset + cur_ins_offset;
+    addr += offset + hook_offset;
   } while(0xe8 != *(BYTE *)addr); // function call
   //ITH_GROWL_DWORD(addr);
 
@@ -1662,7 +1848,7 @@ bool InsertCircusHook2() // jichi 10/2/2013: Change return type to bool
 {
   for (DWORD i = module_base_ + 0x1000; i < module_limit_ -4; i++)
     if ((*(DWORD *)i & 0xffffff) == 0x75243c) { // cmp al, 24; je
-      if (DWORD j = Util::FindEntryAligned(i, 0x80)) {
+      if (DWORD j = SafeFindEntryAligned(i, 0x80)) {
         HookParam hp = {};
         hp.addr = j;
         hp.off = 0x8;
@@ -1732,11 +1918,11 @@ static void SpecialHookShina(DWORD esp_base, HookParam* hp, DWORD* data, DWORD* 
 
 // jichi 8/27/2013
 // Return ShinaRio version number
-// The head of Rio.ini usally looks like:
-//     [ж¤ЋеђЌй‡Њз·’ v2.49]
+// The head of Rio.ini usually looks like:
+//     [椎名里緒 v2.49]
 // This function will return 49 in the above case.
 //
-// Games from г‚ўгѓ€гѓЄг‚ЁгЃ•гЃЏг‚‰ do not have Rio.ini, but $procname.ini.
+// Games from アトリエさくら do not have Rio.ini, but $procname.ini.
 int GetShinaRioVersion()
 {
   int ret = 0;
@@ -1783,7 +1969,7 @@ bool InsertShinaHook()
     //RegisterEngineType(ENGINE_SHINA);
     return true;
 
-  } else if (ver > 40) // <= v2.47. Older games like гЃ‚г‚„гЃ‹гЃ—гЃігЃЁ does not require hcode
+  } else if (ver > 40) // <= v2.47. Older games like あやかしびと does not require hcode
     if (DWORD s = Util::FindCallAndEntryBoth(
           (DWORD)GetTextExtentPoint32A,
           module_limit_ - module_base_,
@@ -1829,7 +2015,7 @@ bool InsertWaffleDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
   // jichi 9/30/2013: Fix the bug in ITH logic where j is unintialized
   for (i = module_base_ + 0x1000; i < module_limit_ - 4; i++)
     if (*id == handler && *(ib - 1) == 0x68)
-      if (DWORD t = Util::FindEntryAligned(i, 0x40)) {
+      if (DWORD t = SafeFindEntryAligned(i, 0x40)) {
         HookParam hp = {};
         hp.addr = t;
         hp.off = 8;
@@ -1951,7 +2137,7 @@ void InsertTinkerBellHook()
 //  {
 //    for (i=s1;i>s1-0x400;i--)
 //    {
-//      if (*(WORD*)(module_base_+i)==0xEC83)
+//      if (*(WORD*)(module_base_+i)==0xec83)
 //      {
 //        hp.addr=module_base_+i;
 //        NewHook(hp, L"C.System");
@@ -1964,7 +2150,7 @@ void InsertTinkerBellHook()
 //  {
 //    for (i=s2;i>s2-0x400;i--)
 //    {
-//      if (*(WORD*)(module_base_+i)==0xEC83)
+//      if (*(WORD*)(module_base_+i)==0xec83)
 //      {
 //        hp.addr=module_base_+i;
 //        NewHook(hp, L"TinkerBell");
@@ -1975,31 +2161,29 @@ void InsertTinkerBellHook()
 //  //if (count)
   //RegisterEngineType(ENGINE_TINKER);
 
+// jichi 3/19/2014: Insert both hooks
 void InsertLuneHook()
 {
-  HookParam hp = {};
-  DWORD c = Util::FindCallOrJmpAbs((DWORD)ExtTextOutA, module_limit_ - module_base_, (DWORD)module_base_, true);
-  if (!c)
-    return;
-  hp.addr = Util::FindCallAndEntryRel(c, module_limit_ - module_base_, (DWORD)module_base_, 0xec8b55);
-  if (!hp.addr)
-    return;
-  hp.off = 4;
-  hp.type = USING_STRING;
-  ConsoleOutput("vnreng:INSERT MBL-Furigana");
-  NewHook(hp, L"MBL-Furigana");
-  c = Util::FindCallOrJmpAbs((DWORD)GetGlyphOutlineA, module_limit_ - module_base_, (DWORD)module_base_, true);
-  if (!c)
-    return;
-  hp.addr = Util::FindCallAndEntryRel(c, module_limit_ - module_base_, (DWORD)module_base_, 0xec8b55);
-  if (!hp.addr)
-    return;
-  hp.split = -0x18;
-  hp.length_offset = 1;
-  hp.type = BIG_ENDIAN|USING_SPLIT;
-  ConsoleOutput("vnreng:INSERT MBL");
-  NewHook(hp, L"MBL");
-  //RegisterEngineType(ENGINE_LUNE);
+  if (DWORD c = Util::FindCallOrJmpAbs((DWORD)ExtTextOutA, module_limit_ - module_base_, (DWORD)module_base_, true))
+    if (DWORD addr = Util::FindCallAndEntryRel(c, module_limit_ - module_base_, (DWORD)module_base_, 0xec8b55)) {
+      HookParam hp = {};
+      hp.addr = addr;
+      hp.off = 4;
+      hp.type = USING_STRING;
+      ConsoleOutput("vnreng:INSERT MBL-Furigana");
+      NewHook(hp, L"MBL-Furigana");
+    }
+  if (DWORD c = Util::FindCallOrJmpAbs((DWORD)GetGlyphOutlineA, module_limit_ - module_base_, (DWORD)module_base_, true))
+    if (DWORD addr = Util::FindCallAndEntryRel(c, module_limit_ - module_base_, (DWORD)module_base_, 0xec8b55)) {
+      HookParam hp = {};
+      hp.addr = addr;
+      hp.off = 4;
+      hp.split = -0x18;
+      hp.length_offset = 1;
+      hp.type = BIG_ENDIAN|USING_SPLIT;
+      ConsoleOutput("vnreng:INSERT MBL");
+      NewHook(hp, L"MBL");
+    }
 }
 /********************************************************************************************
 YU-RIS hook:
@@ -2055,12 +2239,13 @@ bool InsertWhirlpoolHook()
 
 bool InsertCotophaHook()
 {
-  HookParam hp = {};
-  hp.addr = Util::FindCallAndEntryAbs((DWORD)GetTextMetricsA,module_limit_-module_base_,module_base_,0xEC8B55);
-  if (!hp.addr) {
+  DWORD addr = Util::FindCallAndEntryAbs((DWORD)GetTextMetricsA,module_limit_-module_base_,module_base_,0xec8b55);
+  if (!addr) {
     ConsoleOutput("vnreng:Cotopha: pattern not exist");
     return false;
   }
+  HookParam hp = {};
+  hp.addr = addr;
   hp.off = 4;
   hp.split = -0x1c;
   hp.type = USING_UNICODE|USING_SPLIT|USING_STRING;
@@ -2072,7 +2257,6 @@ bool InsertCotophaHook()
 
 bool InsertCatSystem2Hook()
 {
-  HookParam hp = {};
   //DWORD search=0x95EB60F;
   //DWORD j,i=SearchPattern(module_base_,module_limit_-module_base_,&search,4);
   //if (i==0) return;
@@ -2088,12 +2272,13 @@ bool InsertCatSystem2Hook()
   //hp.type=BIG_ENDIAN|DATA_INDIRECT|USING_SPLIT|SPLIT_INDIRECT;
   //hp.length_offset=1;
 
-  hp.addr = Util::FindCallAndEntryAbs((DWORD)GetTextMetricsA, module_limit_ - module_base_, module_base_, 0xff6acccc);
-  if (!hp.addr) {
+  DWORD addr = Util::FindCallAndEntryAbs((DWORD)GetTextMetricsA, module_limit_ - module_base_, module_base_, 0xff6acccc);
+  if (addr) {
     ConsoleOutput("vnreng:CatSystem2: pattern not exist");
     return false;
   }
-  hp.addr += 2;
+  HookParam hp = {};
+  hp.addr = addr + 2;
   hp.off = 8;
   hp.split = -0x10;
   hp.length_offset = 1;
@@ -2159,7 +2344,7 @@ bool InsertMalieHook1()
 {
   const DWORD sig1 = 0x05e3c1;
   enum { sig1_size = 3 };
-  DWORD i = SearchPattern(module_base_, module_limit_ - module_base_, (LPVOID)&sig1, sig1_size);
+  DWORD i = SearchPattern(module_base_, module_limit_ - module_base_, &sig1, sig1_size);
   if (!i) {
     ConsoleOutput("vnreng:MalieHook1: pattern i not exist");
     return false;
@@ -2168,7 +2353,7 @@ bool InsertMalieHook1()
   const WORD sig2 = 0xc383;
   enum { sig2_size = 2 };
   DWORD j = i + module_base_ + sig1_size;
-  i = SearchPattern(j, module_limit_ - j, (LPVOID)&sig2, sig2_size);
+  i = SearchPattern(j, module_limit_ - j, &sig2, sig2_size);
   //if (!j)
   if (!i) { // jichi 8/19/2013: Change the condition fro J to I
     ConsoleOutput("vnreng:MalieHook1: pattern j not exist");
@@ -2188,29 +2373,29 @@ bool InsertMalieHook1()
   return true;
 }
 
-DWORD malie_furi_flag; // jichi 8/20/2013: Make it global so that it can be reset
+DWORD malie_furi_flag_; // jichi 8/20/2013: Make it global so that it can be reset
 void SpecialHookMalie(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split, DWORD *len)
 {
   DWORD ch = *(DWORD *)(esp_base - 0x8) & 0xffff,
         ptr = *(DWORD *)(esp_base - 0x24);
   *data = ch;
   *len = 2;
-  if (malie_furi_flag) {
+  if (malie_furi_flag_) {
     DWORD index = *(DWORD *)(esp_base - 0x10);
     if (*(WORD *)(ptr + index * 2 - 2) < 0xa)
-      malie_furi_flag = 0;
+      malie_furi_flag_ = 0;
   }
   else if (ch == 0xa) {
-    malie_furi_flag = 1;
+    malie_furi_flag_ = 1;
     len = 0;
   }
-  *split = malie_furi_flag;
+  *split = malie_furi_flag_;
 }
 
 bool InsertMalieHook2() // jichi 8/20/2013: Change return type to boolean
 {
   const BYTE ins[] = {0x66,0x3d,0x1,0x0};
-  DWORD p = SearchPattern(module_base_, module_limit_ - module_base_, (LPVOID)ins, 4);
+  DWORD p = SearchPattern(module_base_, module_limit_ - module_base_, ins, 4);
   if (!p) {
     ConsoleOutput("vnreng:MalieHook2: pattern not exist");
     return false;
@@ -2230,7 +2415,7 @@ bool InsertMalieHook2() // jichi 8/20/2013: Change return type to boolean
     }
     break;
   }
-  malie_furi_flag = 0; // reset old malie flag
+  malie_furi_flag_ = 0; // reset old malie flag
   HookParam hp = {};
   hp.addr = (DWORD)ptr + 4;
   hp.off = -8;
@@ -2246,12 +2431,12 @@ bool InsertMalieHook2() // jichi 8/20/2013: Change return type to boolean
 /**
  *  jichi 12/17/2013: Added for Electro Arms
  *  Observations from Electro Arms:
- *  1. split = 0xC can handle most texts and their dwRetn is always zero
- *  2. The text containing furigana needed to be split has non-zero dwRetn when split = 0
+ *  1. split = 0xC can handle most texts and its dwRetn is always zero
+ *  2. The text containing furigana needed to split has non-zero dwRetn when split = 0
  */
 void SpecialHookMalie2(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split, DWORD *len)
 {
-  static DWORD last_split; // jichi 8/20/2013: Move furi flag to the function
+  static DWORD last_split; // FIXME: This makes the special function stateful
   DWORD s1 = *(DWORD *)esp_base; // current split at 0x0
   if (!s1)
     *split = last_split;
@@ -2259,7 +2444,8 @@ void SpecialHookMalie2(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split,
     DWORD s2 = *(DWORD *)(esp_base + 0xc); // second split
     *split = last_split = s1 + s2; // not sure if plus is a good way
   }
-  *len = GetHookDataLength(*hp, esp_base, (DWORD)data);
+  //*len = GetHookDataLength(*hp, esp_base, (DWORD)data);
+  *len = 2;
 }
 
 /**
@@ -2294,7 +2480,7 @@ bool InsertMalie2Hook()
     0x89,0x46, 0x04  // mov dword ptr ds:[esi+0x4],eax
   };
   ULONG range1 = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG p = SearchPattern(module_base_, range1, (LPVOID)ins1, sizeof(ins1));
+  ULONG p = SearchPattern(module_base_, range1, ins1, sizeof(ins1));
   //reladdr = 0x1a3df4;
   if (!p) {
     //ITH_MSG(0, "Wrong1", "t", 0);
@@ -2307,7 +2493,7 @@ bool InsertMalie2Hook()
   //const BYTE ins2[] = { 0x85, 0xc0 }; // test eax,eax
   WORD ins2 = 0xc085; // test eax,eax
   enum { range2 = 0x200 };
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   ULONG q = SearchPattern(module_base_ + p, range2, &ins2, sizeof(ins2));
   if (!q) {
     //ITH_MSG(0, "Wrong2", "t", 0);
@@ -2318,14 +2504,14 @@ bool InsertMalie2Hook()
 
   ULONG reladdr = p + q;
   HookParam hp = {};
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
   hp.off = -8;
   hp.length_offset = 1;
   //hp.split = 0xc; // jichi 12/17/2013: Subcontext removed
   //hp.split = -0xc; // jichi 12/17/2013: This could split the furigana, but will mess up the text
   //hp.type = USING_SPLIT|USING_UNICODE|NO_CONTEXT;
   // jichi 12/17/2013: Need extern func for Electro Arms
-  // Though the hook parameter is quit similar to Malie, the orignal extern function does not work
+  // Though the hook parameter is quit similar to Malie, the original extern function does not work
   hp.type = EXTERN_HOOK|USING_SPLIT|USING_UNICODE|NO_CONTEXT;
   hp.extern_fun = SpecialHookMalie2;
   ConsoleOutput("vnreng: INSERT Malie2");
@@ -2333,6 +2519,109 @@ bool InsertMalie2Hook()
 
   //ITH_GROWL_DWORD2(hp.addr, reladdr);
   //RegisterEngineType(ENGINE_MALIE);
+  return true;
+}
+
+// jichi 2/8/3014: Return the beginning and the end of the text
+// Remove the leading illegal characters
+enum { _MALIE3_MAX_LENGTH = 1500 }; // slightly larger than VNR's text limit (1000)
+LPCWSTR _Malie3LTrim(LPCWSTR p)
+{
+  if (p)
+    for (int count = 0; count < _MALIE3_MAX_LENGTH; count++,
+        p++)
+      if (p[0] == L'v' && p[1] == L'_') { // ex. v_akr0001, v_mzk0001
+        p += 9;
+        return p; // must return otherwise trimming more will break the ITH repetition elimination
+      } else if (p[0] > 9) // ltrim illegal characers
+        return p;
+  return nullptr;
+}
+// Remove the trailing illegal characters
+LPCWSTR _Malie3RTrim(LPCWSTR p)
+{
+  if (p)
+    for (int count = 0; count < _MALIE3_MAX_LENGTH; count++,
+         p--)
+      if (p[-1] > 9) {
+        if (p[-1] >= L'0' && p[-1] <= L'9'&& p[-1-7] == L'_')
+          p -= 9;
+        else
+          return p;
+      }
+  return nullptr;
+}
+// Return the end of the line
+LPCWSTR _Malie3GetEOL(LPCWSTR p)
+{
+  if (p)
+    for (int count = 0; count < _MALIE3_MAX_LENGTH; count++,
+        p++)
+      switch (p[0]) {
+      case 0: // \0
+      case 0xa: // \n // the text after 0xa is furigana
+        return p;
+      }
+  return nullptr;
+}
+
+/**
+ *  jichi 3/8/2014: Add hook for 相州戦神館學園 八命陣
+ *  See: http://sakuradite.com/topic/157
+ *  check 0x5b51ed for ecx+edx*2
+ *  Also need to skip furigana.
+ */
+
+void SpecialHookMalie3(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split, DWORD *len)
+{
+  CC_UNUSED(split);
+  DWORD ecx = *(DWORD *)(esp_base + pusha_ecx_off - 4),
+        edx = *(DWORD *)(esp_base + pusha_edx_off - 4);
+  //*data = ecx + edx*2; // [ecx+edx*2];
+  //*len = wcslen((LPCWSTR)data) << 2;
+  // There are garbage characters
+  LPCWSTR start = _Malie3LTrim((LPCWSTR)(ecx + edx*2)),
+          stop = _Malie3RTrim(_Malie3GetEOL(start));
+  *data = (DWORD)start;
+  *len = max(0, stop - start) << 1;
+  *split = 0x10001; // fuse all threads, and prevent floating
+  //ITH_GROWL_DWORD5((DWORD)start, (DWORD)stop, *len, (DWORD)*start, (DWORD)_Malie3GetEOL(start));
+}
+
+/**
+ *  jichi 8/20/2013: Add hook for 相州戦神館學園 八命陣
+ *  See: http://sakuradite.com/topic/157
+ *  Credits: @ok123
+ */
+bool InsertMalie3Hook()
+{
+  const BYTE ins[] = {
+    // 0x90 nop
+    0x8b,0x44,0x24, 0x04,   // 5b51e0  mov eax,dword ptr ss:[esp+0x4]
+    0x56,                   // 5b51e4  push esi
+    0x57,                   // 5b51e5  push edi
+    0x8b,0x50, 0x08,        // 5b51e6  mov edx,dword ptr ds:[eax+0x8]
+    0x8b,0x08,              // 5b51e9  mov ecx,dword ptr ds:[eax]
+    0x33,0xf6,              // 5b51eb  xor esi,esi
+    0x66,0x8b,0x34,0x51,    // 5b51ed  mov si,word ptr ds:[ecx+edx*2] // jichi: hook here
+    0x42                    // 5b51f1  inc edx
+  };
+  enum {hook_offset = 0x5b51ed - 0x5b51e0};
+  DWORD reladdr = SearchPattern(module_base_, module_limit_ - module_base_, ins, sizeof(ins));
+  if (!reladdr) {
+    ConsoleOutput("vnreng:Malie3: pattern not found");
+    return false;
+  }
+  HookParam hp = {};
+  hp.addr = module_base_ + reladdr + hook_offset;
+  //ITH_GROWL(hp.addr);
+  //hp.addr = 0x5b51ed;
+  //hp.addr = 0x5b51f1;
+  //hp.addr = 0x5b51f2;
+  hp.extern_fun = SpecialHookMalie3;
+  hp.type = EXTERN_HOOK|USING_UNICODE|NO_CONTEXT;
+  ConsoleOutput("vnreng: INSERT Malie3");
+  NewHook(hp, L"Malie3");
   return true;
 }
 
@@ -2345,9 +2634,10 @@ bool InsertMalieHook()
   else {
     // jichi 8/20/2013: Add hook for sweet light engine
     // Insert both malie and malie2 hook.
-    bool b1 = InsertMalieHook2(),
-         b2 = InsertMalie2Hook(); // jichi 8/20/2013 CHECKPOINT: test new sweet light game later
-    return b1 || b2; // prevent conditional shortcut
+    bool ok = InsertMalieHook2();
+    ok = InsertMalie2Hook() || ok; // jichi 8/20/2013 TO BE RESTORED
+    ok = InsertMalie3Hook() || ok; // jichi 3/7/2014
+    return ok;
   }
 }
 
@@ -2363,7 +2653,7 @@ EMEHook hook: (Contributed by Freaka)
 ********************************************************************************************/
 bool InsertEMEHook()
 {
-  DWORD c = Util::FindCallOrJmpAbs((DWORD)IsDBCSLeadByte,module_limit_-module_base_,(DWORD)module_base_,false);
+  DWORD addr = Util::FindCallOrJmpAbs((DWORD)IsDBCSLeadByte,module_limit_-module_base_,(DWORD)module_base_,false);
   // no needed as first call to IsDBCSLeadByte is correct, but sig could be used for further verification
   //WORD sig = 0x51C3;
   //while (c && (*(WORD*)(c-2)!=sig))
@@ -2371,12 +2661,12 @@ bool InsertEMEHook()
   //  //-0x1000 as FindCallOrJmpAbs always uses an offset of 0x1000
   //  c = Util::FindCallOrJmpAbs((DWORD)IsDBCSLeadByte,module_limit_-c-0x1000+4,c-0x1000+4,false);
   //}
-  if (!c) {
+  if (!addr) {
     ConsoleOutput("vnreng:EME: pattern does not exist");
     return false;
   }
   HookParam hp = {};
-  hp.addr = c;
+  hp.addr = addr;
   hp.off = -0x8;
   hp.length_offset = 1;
   hp.type = NO_CONTEXT|DATA_INDIRECT;
@@ -2394,17 +2684,17 @@ void SpecialRunrunEngine(DWORD esp_base, HookParam* hp, DWORD* data, DWORD* spli
 }
 bool InsertRREHook()
 {
-  DWORD c = Util::FindCallOrJmpAbs((DWORD)IsDBCSLeadByte,module_limit_-module_base_,(DWORD)module_base_,false);
-  if (!c) {
+  DWORD addr = Util::FindCallOrJmpAbs((DWORD)IsDBCSLeadByte,module_limit_-module_base_,(DWORD)module_base_,false);
+  if (!addr) {
     ConsoleOutput("vnreng:RRE: function call does not exist");
     return false;
   }
   WORD sig = 0x51c3;
   HookParam hp = {};
-  hp.addr = c;
+  hp.addr = addr;
   hp.length_offset = 1;
   hp.type = NO_CONTEXT|DATA_INDIRECT;
-  if ((*(WORD *)(c-2) != sig)) {
+  if ((*(WORD *)(addr-2) != sig)) {
     hp.extern_fun = SpecialRunrunEngine;
     hp.type |= EXTERN_HOOK;
     ConsoleOutput("vnreng: INSERT Runrun#1");
@@ -2452,7 +2742,7 @@ AbelSoftware hook:
 bool InsertAbelHook()
 {
   const DWORD character[] = {0xc981d48a, 0xffffff00};
-  if (DWORD j = SearchPattern(module_base_,module_limit_-module_base_, (LPVOID)character, sizeof(character))) {
+  if (DWORD j = SearchPattern(module_base_,module_limit_-module_base_, character, sizeof(character))) {
     j += module_base_;
     for (DWORD i = j-0x100; j > i; j--)
       if (*(WORD *)j == 0xff6a) {
@@ -2501,7 +2791,7 @@ bool InsertLiveDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
 bool InsertLiveHook()
 {
   const BYTE ins[] = {0x64,0x89,0x20,0x8b,0x45,0x0c,0x50};
-  DWORD reladdr = SearchPattern(module_base_, module_limit_ - module_base_, (LPVOID)ins, sizeof(ins));
+  DWORD reladdr = SearchPattern(module_base_, module_limit_ - module_base_, ins, sizeof(ins));
   if (!reladdr) {
     ConsoleOutput("vnreng:Live: pattern not found");
     return false;
@@ -2543,7 +2833,7 @@ void InsertBrunsHook()
   }
   //else
   // jichi 12/21/2013: Keep both bruns hooks
-  // The first one does not work for games like гЂЊг‚Єгѓјг‚Їгѓ»г‚­гѓіг‚°гѓЂгѓ пЅћгѓўгѓіеЁз№Ѓж®–гЃ®и±љдєєзЋ‹пЅћгЂЌ anymore.
+  // The first one does not work for games like 「オーク・キングダム～モン娘繁殖の豚人王～」 anymore.
   {
     union {
       DWORD i;
@@ -2634,9 +2924,9 @@ bool InsertQLIE2Hook()
     0x53,           // 53       push ebx
     0x8b,0x5d, 0x1c // 8b5d 1c  mov ebx, dword ptr ss:[ebp+1c]
   };
-  enum { cur_ins_offset = 0 }; // current instruction is the first one
+  enum { hook_offset = 0 }; // current instruction is the first one
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   if (!reladdr) {
     ConsoleOutput("vnreng:QLIE2: pattern not found");
     //ConsoleOutput("Not QLIE2");
@@ -2647,7 +2937,7 @@ bool InsertQLIE2Hook()
   hp.type = DATA_INDIRECT | NO_CONTEXT; // 0x408
   hp.length_offset = 1;
   hp.off = 0x14;
-  hp.addr = module_base_ + reladdr + cur_ins_offset; //sizeof(ins) - cur_ins_size;
+  hp.addr = module_base_ + reladdr + hook_offset; //sizeof(ins) - cur_ins_size;
 
   ConsoleOutput("vnreng: INSERT QLIE2");
   NewHook(hp, L"QLIE2");
@@ -2706,9 +2996,9 @@ CandySoft hook:
   so there should a instruction like cmp reg,5B
   Find this position and navigate to function entry.
   The first parameter is the string pointer.
-  This approach works fine with game later than гЃ¤г‚€гЃЌгЃ™пј’е­¦жњџ.
+  This approach works fine with game later than つよきす２学期.
 
-  But the original гЃ¤г‚€гЃЌгЃ™ is quite different. I handle this case separately.
+  But the original つよきす is quite different. I handle this case separately.
 
 ********************************************************************************************/
 
@@ -2759,12 +3049,12 @@ bool InsertCandyHook2()
 
 /** jichi 10/2/2013: CHECKPOINT
  *
- *  [5/31/2013] жЃ‹г‚‚Hг‚‚гЃЉе‹‰еј·г‚‚гЂЃгЃЉгЃѕгЃ‹гЃ›пјЃгЃЉе§‰гЃЎг‚ѓг‚“йѓЁ
+ *  [5/31/2013] 恋もHもお勉強も、おまかせ！お姉ちゃん部
  *  base = 0xf20000
- *  + г‚·гѓЉгѓЄг‚Є: /HSN-4@104A48:ANEBU.EXE
+ *  + シナリオ: /HSN-4@104A48:ANEBU.EXE
  *    - off: 4294967288 = 0xfffffff8 = -8
  ,    - type: 1025 = 0x401
- *  + йЃёжЉћи‚ў: /HSN-4@104FDD:ANEBU.EXE
+ *  + 選択肢: /HSN-4@104FDD:ANEBU.EXE
  *    - off: 4294967288 = 0xfffffff8 = -8
  *    - type: 1089 = 0x441
  */
@@ -2777,9 +3067,9 @@ bool InsertCandyHook2()
 //    0x85,0xc0,       // test eax,eax
 //    0x75, 0x0e       // jnz XXOO ; it must be 0xe, or there will be duplication
 //  };
-//  enum { cur_ins_offset = 0 };
+//  enum { hook_offset = 0 };
 //  ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-//  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+//  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
 //  reladdr = 0x104a48;
 //  ITH_GROWL_DWORD(module_base_);
 //  //ITH_GROWL_DWORD3(reladdr, module_base_, range);
@@ -2787,7 +3077,7 @@ bool InsertCandyHook2()
 //    return false;
 //
 //  HookParam hp = {};
-//  hp.addr = module_base_ + reladdr + cur_ins_offset;
+//  hp.addr = module_base_ + reladdr + hook_offset;
 //  hp.off = -8;
 //  hp.type = USING_STRING|NO_CONTEXT;
 //  NewHook(hp, L"Candy");
@@ -2922,7 +3212,7 @@ bool InsertPensilHook()
 {
   for (DWORD i = module_base_; i < module_limit_ - 4; i++)
     if (*(DWORD *)i == 0x6381) // cmp *,8163
-      if (DWORD j = Util::FindEntryAligned(i, 0x100)) {
+      if (DWORD j = SafeFindEntryAligned(i, 0x100)) {
         HookParam hp = {};
         hp.addr = j;
         hp.off = 8;
@@ -2972,7 +3262,7 @@ static void SpecialHookDebonosu(DWORD esp_base, HookParam* hp, DWORD* data, DWOR
 bool InsertDebonosuHook()
 {
   DWORD fun;
-  if (GetFunctionAddr("lstrcatA",&fun,0,0,0) == 0)  {
+  if (CC_UNLIKELY(!GetFunctionAddr("lstrcatA", &fun, 0, 0, 0))) {
     ConsoleOutput("vnreng:Debonosu: failed to find lstrcatA");
     return false;
   }
@@ -2983,25 +3273,26 @@ bool InsertDebonosuHook()
   }
   DWORD search = 0x15ff | (addr << 16);
   addr >>= 16;
-  for (DWORD i = module_base_; i < module_limit_ - 4; i++) {
-    if (*(DWORD*)i != search) continue;
-    if (*(WORD*)(i + 4) != addr) continue;// call dword ptr lstrcatA
-    if (*(BYTE*)(i - 5) != 0x68) continue;// push $
-    DWORD push = *(DWORD*)(i - 4);
-    for (DWORD j = i + 6, k = j + 0x10; j < k; j++) {
-      if (*(BYTE*)j != 0xB8) continue;
-      if (*(DWORD*)(j + 1) != push) continue;
-      HookParam hp = {};
-      hp.addr = Util::FindEntryAligned(i, 0x200);
-      hp.extern_fun = SpecialHookDebonosu;
-      if (hp.addr == 0) continue;
-      hp.type = USING_STRING | EXTERN_HOOK;
-      ConsoleOutput("vnreng: INSERT Debonosu");
-      NewHook(hp, L"Debonosu");
-      //RegisterEngineType(ENGINE_DEBONOSU);
-      return true;
-    }
-  }
+  for (DWORD i = module_base_; i < module_limit_ - 4; i++)
+    if (*(DWORD *)i == search &&
+        *(WORD *)(i + 4) == addr && // call dword ptr lstrcatA
+        *(BYTE *)(i - 5) == 0x68) { // push $
+      DWORD push = *(DWORD *)(i - 4);
+      for (DWORD j = i + 6, k = j + 0x10; j < k; j++)
+        if (*(BYTE *)j == 0xb8 &&
+            *(DWORD *)(j + 1) == push)
+          if (DWORD addr = SafeFindEntryAligned(i, 0x200)) {
+            HookParam hp = {};
+            hp.addr = addr;
+            hp.extern_fun = SpecialHookDebonosu;
+            hp.type = USING_STRING | EXTERN_HOOK;
+            ConsoleOutput("vnreng: INSERT Debonosu");
+            NewHook(hp, L"Debonosu");
+            //RegisterEngineType(ENGINE_DEBONOSU);
+            return true;
+          }
+      }
+
   ConsoleOutput("vnreng:Debonosu: failed");
   //ConsoleOutput("Unknown Debonosu engine.");
   return false;
@@ -3271,13 +3562,13 @@ bool InsertIGSDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
       hp.type = USING_UNICODE|USING_SPLIT;
       ConsoleOutput("vnreng: INSERT IronGameSystem");
       NewHook(hp, L"IronGameSystem");
-      //ConsoleOutput("IGS - Please set text(гѓ†г‚­г‚№гѓ€) display speed(иЎЁз¤єйЂџеє¦) to fastest(зћ¬й–“)");
+      //ConsoleOutput("IGS - Please set text(テキスト) display speed(表示速度) to fastest(瞬間)");
       //RegisterEngineType(ENGINE_IGS);
       return true;
     }
   }
   ConsoleOutput("vnreng:IGS: failed");
-  return true; // jichi b12/25/2013: return true
+  return true; // jichi 12/25/2013: return true
 }
 void InsertIronGameSystemHook()
 {
@@ -3289,7 +3580,7 @@ void InsertIronGameSystemHook()
 
 /********************************************************************************************
 AkabeiSoft2Try hook:
-  Game folder contains YaneSDK.dll. Maybe we should call the engine Yane(е±‹ж № = roof)?
+  Game folder contains YaneSDK.dll. Maybe we should call the engine Yane(屋根 = roof)?
   This engine is based on .NET framework. This really makes it troublesome to locate a
   valid hook address. The problem is that the engine file merely contains bytecode for
   the CLR. Real meaningful object code is generated dynamically and the address is randomized.
@@ -3467,14 +3758,15 @@ static void SpecialHookWillPlus(DWORD esp_base, HookParam* hp, DWORD* data, DWOR
 
 bool InsertWillPlusHook()
 {
-  HookParam hp = {};
   //__debugbreak();
-  hp.addr = Util::FindCallAndEntryAbs((DWORD)GetGlyphOutlineA,module_limit_-module_base_,module_base_,0xEC81);
-  if (hp.addr == 0) {
+  DWORD addr = Util::FindCallAndEntryAbs((DWORD)GetGlyphOutlineA,module_limit_-module_base_,module_base_,0xec81);
+  if (!addr) {
     ConsoleOutput("vnreng:WillPlus: function call not found");
     return false;
   }
 
+  HookParam hp = {};
+  hp.addr = addr;
   hp.extern_fun = SpecialHookWillPlus;
   hp.type = USING_STRING | EXTERN_HOOK;
   ConsoleOutput("vnreng: INSERT WillPlus");
@@ -3486,42 +3778,27 @@ bool InsertWillPlusHook()
 /** jichi 9/14/2013
  *  TanukiSoft (*.tac)
  *
- *  Seems to be broken for new games in 2012 such like гЃЁгЃЄг‚ЉгЃ®
+ *  Seems to be broken for new games in 2012 such like となりの
  *
- *  еѕ®е°‘еҐі: /HSN4@004983E0
+ *  微少女: /HSN4@004983E0
+ *  This is the same hook as ITH
  *  - addr: 4817888 (0x4983e0)
  *  - extern_fun: 0x0
- *  - function: 0
- *  - hook_len: 0
- *  - ind: 0
- *  - length_of
- *  - fset: 0
- *  - module: 0
  *  - off: 4
- *  - recover_len: 0
- *  - split: 0
- *  - split_ind: 0
  *  - type: 1025 (0x401)
  *
- *  йљЈг‚ЉгЃ®гЃ·пЅћгЃ•г‚“: /HSN-8@200FE7:TONARINO.EXE
+ *  隣りのぷ～さん: /HSN-8@200FE7:TONARINO.EXE
  *  - addr: 2101223 (0x200fe7)
- *  - extern_fun: 0x0
- *  - function: 0
- *  - hook_len: 0
- *  - ind: 0
- *  - length_offset: 0
  *  - module: 2343491905 (0x8baed941)
- *  - off: 4294967284 (0xfffffff4, -0xc)
- *  - recover_len: 0
- *  - split: 0
- *  - split_ind: 0
+ *  - off: 4294967284 = 0xfffffff4 = -0xc
  *  - type: 1089 (0x441)
  */
 bool InsertTanukiHook()
 {
+  ConsoleOutput("vnreng: trying TanukiSoft");
   for (DWORD i = module_base_; i < module_limit_ - 4; i++)
     if (*(DWORD *)i == 0x8140)
-      if (DWORD j = Util::FindEntryAligned(i,0x400)) {  // jichi 9/14/2013: might crash without admin priv
+      if (DWORD j = SafeFindEntryAligned(i,0x400)) { // jichi 9/14/2013: might crash the game without admin priv
         //ITH_GROWL_DWORD2(i, j);
         HookParam hp = {};
         hp.addr = j;
@@ -3782,7 +4059,7 @@ bool InsertShinyDaysHook()
     0xc6,0x84,0x24,0x90,0x02,0x00,0x00,0x02
   };
   LPVOID addr = (LPVOID)0x42ad94;
-  if (memcmp(addr, (LPVOID)ins, 0x10) != 0) {
+  if (memcmp(addr, ins, 0x10) != 0) {
     ConsoleOutput("vnreng:ShinyDays: only work for 1.00");
     return false;
   }
@@ -3797,12 +4074,12 @@ bool InsertShinyDaysHook()
 }
 
 /**
- *  jichi 9/5/2013:  aInfo.db
+ *  jichi 9/5/2013: NEXTON games with aInfo.db
  *  Sample games:
- *  - /HA-C@4D69E:InnocentBullet.exe (г‚¤гѓЋг‚»гѓігѓ€гѓђгѓ¬гѓѓгѓ€)
- *  - /HA-C@40414C:ImoutoBancho.exe (е¦№з•Єй•·)
+ *  - /HA-C@4D69E:InnocentBullet.exe (イノセントバレット)
+ *  - /HA-C@40414C:ImoutoBancho.exe (妹番長)
  *
- *  See: http://ja.wikipedia.org/wiki/гѓЌг‚Їг‚№гѓ€гѓі
+ *  See: http://ja.wikipedia.org/wiki/ネクストン
  *  See (CaoNiMaGeBi): http://tieba.baidu.com/p/2576241908
  *
  *  Old:
@@ -3834,12 +4111,12 @@ bool InsertNextonHook()
     0x85,0xc0,              // 00804150   85c0             test eax,eax
     0x0f,0x84               // 00804152  ^0f84 c0feffff    je imoutoba.00804018
   };
-  //enum { cur_ins_offset = 0 };
+  //enum { hook_offset = 0 };
   ULONG addr = module_base_; //- sizeof(ins);
   do {
     addr += sizeof(ins); // ++ so that each time return diff address
     ULONG range = min(module_limit_ - addr, MAX_REL_ADDR);
-    ULONG offset = SearchPattern(addr, range, (LPVOID)ins, sizeof(ins));
+    ULONG offset = SearchPattern(addr, range, ins, sizeof(ins));
     if (!offset) {
       ConsoleOutput("vnreng:NEXTON: pattern not exist");
       return false;
@@ -3847,7 +4124,7 @@ bool InsertNextonHook()
 
     addr += offset;
 
-    //const BYTE ins[] = {
+    //const BYTE hook_ins[] = {
     //  0x57,       // 00804144   57               push edi
     //  0x8b,0xc3,  // 00804145   8bc3             mov eax,ebx
     //  0xe8 //??,??,??,??,      00804147   e8 24d90100      call imoutoba.00821a70
@@ -3862,7 +4139,7 @@ bool InsertNextonHook()
   //hp.off = -0x10;
   //hp.type = BIG_ENDIAN; // 4
 
-  // й­”зЋ‹гЃ®гЃЏгЃ›гЃ«з”џг‚¤г‚­гЃ гЃЈпјЃ2 пЅћд»Љеє¦гЃЇжЂ§ж€¦гЃ пјЃпЅћ
+  // 魔王のくせに生イキだっ！2 ～今度は性戦だ！～
   // CheatEngine search for byte array: 8944241885C00F84
   //addr = 0x4583de; // wrong
   //addr = 0x5460ba;
@@ -3875,7 +4152,7 @@ bool InsertNextonHook()
   hp.type = BIG_ENDIAN|USING_SPLIT; // 0x54
 
   // Indirect is needed for new games,
-  // Such as: /HA-C*0@4583DE for гЂЊй­”зЋ‹гЃ®гЃЏгЃ›гЃ«з”џг‚¤г‚­гЃ гЃЈпјЃпј’гЂЌ
+  // Such as: /HA-C*0@4583DE for 「魔王のくせに生イキだっ！２」
   //hp.type = BIG_ENDIAN|DATA_INDIRECT; // 12
   //hp.type = USING_UNICODE;
   //ITH_GROWL_DWORD3(addr, -hp.off, hp.type);
@@ -3906,9 +4183,9 @@ bool InsertGesen18Hook()
     0x2b,0xce,  // sub ecx,esi ; hook here
     0x8b,0xf8   // mov eds,eax
   };
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   if (!reladdr) {
     ConsoleOutput("vnreng:Gesen18: pattern not exist");
     return false;
@@ -3918,7 +4195,7 @@ bool InsertGesen18Hook()
   hp.type = NO_CONTEXT | DATA_INDIRECT;
   hp.length_offset = 1;
   hp.off = -0x24;
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
 
   //index = SearchPattern(module_base_, size,ins, sizeof(ins));
   //ITH_GROWL_DWORD2(base, index);
@@ -3941,8 +4218,8 @@ bool InsertGesen18Hook()
  *
  *  Wrong: 0x400000 + 0x7c574
  *
- *  //Example: [130927]е¦№г‚№гѓ‘г‚¤гѓ©гѓ« /HBN-8*0:14@65589F
- *  Example: гѓ„г‚ґг‚¦гѓЋг‚¤г‚¤е®¶ж—Џ Trial /HBN-8*0:14@650A2F
+ *  //Example: [130927]妹スパイラル /HBN-8*0:14@65589F
+ *  Example: ツゴウノイイ家族 Trial /HBN-8*0:14@650A2F
  *  Note: 0x650a2f > 40000(base) + 20000(limit)
  *  - addr: 0x650a2f
  *  - extern_fun: 0x0
@@ -3959,33 +4236,33 @@ bool InsertGesen18Hook()
  *
  *  @CaoNiMaGeBi:
  *  RECENT GAMES:
- *    [130927]е¦№г‚№гѓ‘г‚¤гѓ©гѓ« /HBN-8*0:14@65589F
- *    [130927]г‚µгѓ гѓ©г‚¤гѓ›гѓ«гѓўгѓі
- *    [131025]гѓ„г‚ґг‚¦гѓЋг‚¤г‚¤е®¶ж—Џ /HBN-8*0:14@650A2F (for trial version)
+ *    [130927]妹スパイラル /HBN-8*0:14@65589F
+ *    [130927]サムライホルモン
+ *    [131025]ツゴウノイイ家族 /HBN-8*0:14@650A2F (for trial version)
  *    CLIENT ORGANIZAIONS:
  *    CROWD
  *    D:drive.
  *    Hands-Aid Corporation
- *    iMelж ЄејЏдјљз¤ѕ
+ *    iMel株式会社
  *    SHANNON
  *    SkyFish
  *    SNACK-FACTORY
  *    team flap
  *    Zodiac
- *    гЃЏг‚‰г‚ЂгЃЎг‚ѓгЃ†гЃ пЅћ
- *    гЃѕгЃ‹г‚Ќг‚“г‚Ѕгѓ•гѓ€
- *    г‚ўг‚¤гѓ‡г‚Јг‚ўгѓ•г‚Ўг‚Їгѓ€гѓЄгѓјж ЄејЏдјљз¤ѕ
- *    г‚«гѓ©г‚ЇгѓЄг‚єгѓ 
- *    еђ€иµ„дјљз¤ѕгѓ•г‚Ўгѓјг‚№гѓ€гѓЄгѓјгѓ 
- *    жњ‰й™ђдјљз¤ѕг‚¦гѓ«г‚Їг‚№гЃёгѓ–гѓі
- *    жњ‰й™ђдјљз¤ѕгѓ­гѓјг‚їг‚№
- *    ж ЄејЏдјљз¤ѕCUCURI
- *    ж ЄејЏдјљз¤ѕг‚ўгѓђгѓі
- *    ж ЄејЏдјљз¤ѕг‚¤гѓіг‚їгѓ©г‚Їгѓ†г‚Јгѓ–гѓ–гѓ¬г‚¤гѓіг‚є
- *    ж ЄејЏдјљз¤ѕг‚¦г‚Јгѓігѓ‡г‚Јгѓјгѓ«
- *    ж ЄејЏдјљз¤ѕг‚Ёгѓґг‚Ўгѓіг‚ёг‚§
- *    ж ЄејЏдјљз¤ѕгѓќгѓ‹гѓјг‚­гѓЈгѓ‹г‚Єгѓі
- *    ж ЄејЏдјљз¤ѕе¤§з¦Џг‚Ёгѓіг‚їгѓјгѓ†г‚¤гѓігѓЎгѓігѓ€
+ *    くらむちゃうだ～
+ *    まかろんソフト
+ *    アイディアファクトリー株式会社
+ *    カラクリズム
+ *    合资会社ファーストリーム
+ *    有限会社ウルクスへブン
+ *    有限会社ロータス
+ *    株式会社CUCURI
+ *    株式会社アバン
+ *    株式会社インタラクティブブレインズ
+ *    株式会社ウィンディール
+ *    株式会社エヴァンジェ
+ *    株式会社ポニーキャニオン
+ *    株式会社大福エンターテインメント
  */
 bool InsertArtemisHook()
 {
@@ -3995,9 +4272,9 @@ bool InsertArtemisHook()
     0x85,0xc0,       // test eax,eax
     0x75, 0x0e       // jnz XXOO ; it must be 0xe, or there will be duplication
   };
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //ITH_GROWL_DWORD3(reladdr, module_base_, range);
   if (!reladdr) {
     ConsoleOutput("vnreng:Artemis: pattern not exist");
@@ -4005,7 +4282,7 @@ bool InsertArtemisHook()
   }
 
   HookParam hp = {};
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
   hp.length_offset = 1;
   hp.off = -0xc;
   hp.split = 0x14;
@@ -4024,7 +4301,7 @@ bool InsertArtemisHook()
  *  jichi 1/2/2014: Taskforce2 Engine
  *
  *  Examples:
- *  зҐћж§(д»®)-г‚«гѓџг‚µгѓћг‚«гѓѓг‚іг‚«гѓЄ- и·Їењ°иЈЏз№љд№±з·Ё (1.1)
+ *  神様(仮)-カミサマカッコカリ- 路地裏繚乱編 (1.1)
  *  /HS-8@178872:Taskforce2.exe
  *
  *  00578819   . 50             PUSH EAX                                 ; |Arg1
@@ -4083,7 +4360,7 @@ bool InsertArtemisHook()
  *  0057888A  |. 5B             POP EBX
  *  0057888B  \. C3             RETN
  *
- *  [131129] [Digital Cute] г‚Єгѓ€гѓЎг‚№г‚¤гѓѓгѓЃ -OtomeSwitch- пЅћеЅјгЃЊжЊЃгЃЈгЃ¦г‚‹еЅјеҐігЃ®гѓЄгѓўг‚ігѓіпЅћ (1.1)
+ *  [131129] [Digital Cute] オトメスイッチ -OtomeSwitch- ～彼が持ってる彼女のリモコン～ (1.1)
  *  /HS-8@1948E9:Taskforce2.exe
  *  - addr: 0x1948e9
  *  - off: 4294967284 (0xfffffff4 = -0xc)
@@ -4160,9 +4437,9 @@ bool InsertTaskforce2Hook()
     0x75, 0xf3, // 005948e7  |.^75 f3          \jnz short taskforc.005948dc
     0x3b,0xfb   // 005948e9  |> 3bfb           cmp edi,ebx ; jichi: hook here
   };
-  enum { cur_ins_offset = sizeof(ins) - 2 };
+  enum { hook_offset = sizeof(ins) - 2 };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //ITH_GROWL_DWORD3(reladdr, module_base_, range);
   if (!reladdr) {
     ConsoleOutput("vnreng:Taskforce2: pattern not exist");
@@ -4170,7 +4447,7 @@ bool InsertTaskforce2Hook()
   }
 
   HookParam hp = {};
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
   hp.off = -0xc;
   hp.type = BIG_ENDIAN | USING_STRING; // 0x41
 
@@ -4193,7 +4470,7 @@ namespace { // unnamed Rejet
  *      8bd1      mov edx,ecx
  *
  *  Examples:
- *  - Type1: гѓ‰гѓѓгѓ€г‚«гѓ¬г‚·-We're 8bit Lovers!: /HBN-4*0@A5332:DotKareshi.exe
+ *  - Type1: ドットカレシ-We're 8bit Lovers!: /HBN-4*0@A5332:DotKareshi.exe
  *    length_offset: 1
  *    off: 0xfffffff8 (-0x8)
  *    type: 1096 (0x448)
@@ -4223,7 +4500,7 @@ namespace { // unnamed Rejet
  *    01185350   . 83C4 08        ADD ESP,0x8
  *    01185353   . 84C0           TEST AL,AL
  *
- *  - Type2: гѓ‰гѓѓгѓ€г‚«гѓ¬г‚·-We're 8bit Lovers! II: /HBN-8*0@A7AF9:dotkareshi.exe
+ *  - Type2: ドットカレシ-We're 8bit Lovers! II: /HBN-8*0@A7AF9:dotkareshi.exe
  *    off: 4294967284 (0xfffffff4 = -0xc)
  *    length_offset: 1
  *    type: 1096 (0x448)
@@ -4260,7 +4537,7 @@ namespace { // unnamed Rejet
  *    01357B21   . E8 BAD0F8FF    CALL DotKares.012E4BE0
  *    01357B26   . 68 28A17501    PUSH DotKares.0175A128                   ; /Arg1 = 0175A128 ASCII "<br>"
  *
- *  - Type2: TinyГ—MACHINEGUN: /HBN-8*0@4CEB8:TinyMachinegun.exe
+ *  - Type2: Tiny×MACHINEGUN: /HBN-8*0@4CEB8:TinyMachinegun.exe
  *    module_base_: 0x12f0000
  *    There are two possible places to hook
  *
@@ -4288,7 +4565,7 @@ namespace { // unnamed Rejet
  *    0133CEDB   . 68 44847D01    PUSH TinyMach.017D8444                   ; |Arg1 = 017D8444
  *    0133CEE0   . E8 EB5BFDFF    CALL TinyMach.01312AD0                   ; \TinyMach.011B2AD0
  *
- *  - Type 3: е‰ЈгЃЊеђ›: /HBN-8*0@B357D:KenGaKimi.exe
+ *  - Type 3: 剣が君: /HBN-8*0@B357D:KenGaKimi.exe
  *
  *    01113550   . FFF0           PUSH EAX
  *    01113552   . 0FC111         XADD DWORD PTR DS:[ECX],EDX
@@ -4312,7 +4589,7 @@ namespace { // unnamed Rejet
 bool FindRejetHook(LPCVOID ins, DWORD ins_size, DWORD ins_off, DWORD hp_off, LPCWSTR hp_name = L"Rejet")
 {
   // Offset to the function call from the beginning of the function
-  //enum { cur_ins_offset = 0x21 }; // Type1: hex(0x01185332-0x01185311)
+  //enum { hook_offset = 0x21 }; // Type1: hex(0x01185332-0x01185311)
   //const BYTE ins[] = {    // Type1: Function start
   //  0xff,0xf0,      // 01185311   . fff0           push eax  ; beginning of a new functino
   //  0x0f,0xc1,0x11, // 01185313   . 0fc111         xadd dword ptr ds:[ecx],edx
@@ -4325,7 +4602,7 @@ bool FindRejetHook(LPCVOID ins, DWORD ins_size, DWORD ins_off, DWORD hp_off, LPC
   do {
     //addr += sizeof(ins_size); // ++ so that each time return diff address
     ULONG range = min(module_limit_ - addr, MAX_REL_ADDR);
-    ULONG offset = SearchPattern(addr, range, (LPVOID)ins, ins_size);
+    ULONG offset = SearchPattern(addr, range, ins, ins_size);
     if (!offset) {
       //ITH_MSG(L"failed");
       ConsoleOutput("vnreng:Rejet: pattern not found");
@@ -4335,7 +4612,7 @@ bool FindRejetHook(LPCVOID ins, DWORD ins_size, DWORD ins_off, DWORD hp_off, LPC
     addr += offset + ins_off;
     //ITH_GROWL_DWORD(addr);
     //ITH_GROWL_DWORD(*(DWORD *)(addr-3));
-    //const BYTE ins[] = {
+    //const BYTE hook_ins[] = {
     //  /*0x8b,*/0x74,0x24, 0x20,  //    mov esi,dword ptr ss:[esp+0x20]
     //  0xe8 //??,??,??,??, 01357af9  e8 7283fbff call DotKares.0130fe70 ; jichi: hook here
     //};
@@ -4350,7 +4627,7 @@ bool FindRejetHook(LPCVOID ins, DWORD ins_size, DWORD ins_off, DWORD hp_off, LPC
   //hp.off = -0x8; // Type1
   //hp.off = -0xc; // Type2
 
-  NewHook(hp, (LPWSTR)hp_name);
+  NewHook(hp, hp_name);
   return true;
 }
 bool InsertRejetHook1() // This type of hook has varied hook address
@@ -4387,7 +4664,7 @@ bool InsertRejetHook2() // This type of hook has static hook address
   enum { hp_off = -0xc }; // hook parameter
   return FindRejetHook(ins, sizeof(ins), ins_offset, hp_off);
 }
-bool InsertRejetHook3() // jichi 12/28/2013: add for е‰ЈгЃЊеђ›
+bool InsertRejetHook3() // jichi 12/28/2013: add for 剣が君
 {
   // The following pattern is the same as type2
   const BYTE ins[] = {   // Type2 Function start
@@ -4404,13 +4681,13 @@ bool InsertRejetHook3() // jichi 12/28/2013: add for е‰ЈгЃЊеђ›
     0x8b,0x4c,0x24, 0x14 //   01357ae6   8b4c24 14      mov ecx,dword ptr ss:[esp+0x14]
   };
   // Offset to the function call from the beginning of the function
-  //enum { cur_ins_offset = 0x27 }; // Type2: hex(0x0133CEC7-0x0133CEA0) = hex(0x01357af9-0x1357ad2)
+  //enum { hook_offset = 0x27 }; // Type2: hex(0x0133CEC7-0x0133CEA0) = hex(0x01357af9-0x1357ad2)
   enum { hp_off = -0xc }; // hook parameter
   ULONG addr = module_base_; //- sizeof(ins);
   while (true) {
     //addr += sizeof(ins_size); // ++ so that each time return diff address
     ULONG range = min(module_limit_ - addr, MAX_REL_ADDR);
-    ULONG offset = SearchPattern(addr, range, (LPVOID)ins, sizeof(ins));
+    ULONG offset = SearchPattern(addr, range, ins, sizeof(ins));
     if (!offset) {
       //ITH_MSG(L"failed");
       ConsoleOutput("vnreng:Rejet: pattern not found");
@@ -4452,6 +4729,102 @@ bool InsertRejetHook()
 { return InsertRejetHook2() || InsertRejetHook1() || InsertRejetHook3(); } // insert hook2 first, since 2's pattern seems to be more unique
 
 /**
+ *  jichi 4/1/2014: Insert AU hook
+ *  Sample games:
+ *  英雄＊戦姫: /HBN-8*4@4AD807
+ *  英雄＊戦姫GOLD: /HB-8*4@4ADB50 (alternative)
+ *
+ *  /HBN-8*4@4AD807
+ *  - addr: 4904967 = 0x4ad807
+ *  - ind: 4
+ *  - length_offset: 1
+ *  - off: 4294967284 = 0xfffffff4 = -0xc
+ *  - type: 1032 = 0x408
+ *
+ *  004ad76a  |. ff50 04        |call dword ptr ds:[eax+0x4]
+ *  004ad76d  |. 48             |dec eax                                 ;  switch (cases 1..a)
+ *  004ad76e  |. 83f8 09        |cmp eax,0x9
+ *  004ad771  |. 0f87 37020000  |ja 英雄＊戦.004ad9ae
+ *  004ad777  |. ff2485 2cda4a0>|jmp dword ptr ds:[eax*4+0x4ada2c]
+ *  004ad77e  |> 83bf c4000000 >|cmp dword ptr ds:[edi+0xc4],0x1         ;  case 1 of switch 004ad76d
+ *  004ad785  |. 75 35          |jnz short 英雄＊戦.004ad7bc
+ *  004ad787  |. 39af c8000000  |cmp dword ptr ds:[edi+0xc8],ebp
+ *  004ad78d  |. 72 08          |jb short 英雄＊戦.004ad797
+ *  004ad78f  |. 8b87 b4000000  |mov eax,dword ptr ds:[edi+0xb4]
+ *  004ad795  |. eb 06          |jmp short 英雄＊戦.004ad79d
+ *  004ad797  |> 8d87 b4000000  |lea eax,dword ptr ds:[edi+0xb4]
+ *  004ad79d  |> 0fb608         |movzx ecx,byte ptr ds:[eax]
+ *  004ad7a0  |. 51             |push ecx
+ *  004ad7a1  |. e8 d15b2a00    |call 英雄＊戦.00753377
+ *  004ad7a6  |. 83c4 04        |add esp,0x4
+ *  004ad7a9  |. 85c0           |test eax,eax
+ *  004ad7ab  |. 74 0f          |je short 英雄＊戦.004ad7bc
+ *  004ad7ad  |. 8d5424 20      |lea edx,dword ptr ss:[esp+0x20]
+ *  004ad7b1  |. 52             |push edx
+ *  004ad7b2  |. b9 88567a00    |mov ecx,英雄＊戦.007a5688
+ *  004ad7b7  |. e8 a40cf6ff    |call 英雄＊戦.0040e460
+ *  004ad7bc  |> 8b8424 e400000>|mov eax,dword ptr ss:[esp+0xe4]
+ *  004ad7c3  |. 8a48 01        |mov cl,byte ptr ds:[eax+0x1]
+ *  004ad7c6  |. 84c9           |test cl,cl
+ *  004ad7c8  |. 75 2e          |jnz short 英雄＊戦.004ad7f8
+ *  004ad7ca  |. 8d9f b0000000  |lea ebx,dword ptr ds:[edi+0xb0]
+ *  004ad7d0  |. be ac6e7a00    |mov esi,英雄＊戦.007a6eac
+ *  004ad7d5  |. 8bcb           |mov ecx,ebx
+ *  004ad7d7  |. e8 e40af6ff    |call 英雄＊戦.0040e2c0
+ *  004ad7dc  |. 84c0           |test al,al
+ *  004ad7de  |. 0f84 ca010000  |je 英雄＊戦.004ad9ae
+ *  004ad7e4  |. be a86e7a00    |mov esi,英雄＊戦.007a6ea8
+ *  004ad7e9  |. 8bcb           |mov ecx,ebx
+ *  004ad7eb  |. e8 d00af6ff    |call 英雄＊戦.0040e2c0
+ *  004ad7f0  |. 84c0           |test al,al
+ *  004ad7f2  |. 0f84 b6010000  |je 英雄＊戦.004ad9ae
+ *  004ad7f8  |> 6a 00          |push 0x0
+ *  004ad7fa  |. 8d8f b0000000  |lea ecx,dword ptr ds:[edi+0xb0]
+ *  004ad800  |. 83c8 ff        |or eax,0xffffffff
+ *  004ad803  |. 8d5c24 24      |lea ebx,dword ptr ss:[esp+0x24]
+ *  004ad807  |. e8 740cf6ff    |call 英雄＊戦.0040e480     ; jichi: hook here
+ *  004ad80c  |. e9 9d010000    |jmp 英雄＊戦.004ad9ae
+ *  004ad811  |> 8b8c24 e400000>|mov ecx,dword ptr ss:[esp+0xe4]         ;  case 4 of switch 004ad76d
+ *  004ad818  |. 8039 00        |cmp byte ptr ds:[ecx],0x0
+ *  004ad81b  |. 0f84 8d010000  |je 英雄＊戦.004ad9ae
+ *  004ad821  |. b8 04000000    |mov eax,0x4
+ *  004ad826  |. b9 c86e7a00    |mov ecx,英雄＊戦.007a6ec8                   ;  ascii "<br>"
+ *  004ad82b  |. 8d5424 20      |lea edx,dword ptr ss:[esp+0x20]
+ *  004ad82f  |. e8 3c0df6ff    |call 英雄＊戦.0040e570
+ *  004ad834  |. e9 75010000    |jmp 英雄＊戦.004ad9ae
+ *  004ad839  |> 8bbf b4000000  |mov edi,dword ptr ds:[edi+0xb4]         ;  case 5 of switch 004ad76d
+ */
+bool InsertAUHook()
+{
+  const BYTE ins[] = {
+    0x6a, 0x00,                     // 004ad7f8  |> 6a 00          |push 0x0
+    0x8d,0x8f, 0xb0,0x00,0x00,0x00, // 004ad7fa  |. 8d8f b0000000  |lea ecx,dword ptr ds:[edi+0xb0]
+    0x83,0xc8, 0xff,                // 004ad800  |. 83c8 ff        |or eax,0xffffffff
+    0x8d,0x5c,0x24, 0x24,           // 004ad803  |. 8d5c24 24      |lea ebx,dword ptr ss:[esp+0x24]
+    0xe8 //740cf6ff                 // 004ad807  |. e8 740cf6ff    |call 英雄＊戦.0040e480     ; jichi: hook here
+  };
+  enum { hook_offset = sizeof(ins) - 1 };
+  ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
+  //reladdr = 0x4ad807;
+  if (!reladdr) {
+    ConsoleOutput("vnreng:AUHook: pattern not found");
+    return false;
+  }
+
+  HookParam hp = {};
+  hp.addr = module_base_ + reladdr + hook_offset;
+  hp.length_offset = 1;
+  hp.ind = 4;
+  hp.off = -0xc;
+  hp.type = NO_CONTEXT | DATA_INDIRECT;
+
+  ConsoleOutput("vnreng: INSERT AUHook");
+  NewHook(hp, L"AUEngine");
+  return true;
+}
+
+/**
  *  jichi 1/10/2014: Rai7 puk
  *  See: http://www.hongfire.com/forum/showthread.php/421909-%E3%80%90Space-Warfare-Sim%E3%80%91Rai-7-PUK/page10
  *  See: www.hongfire.com/forum/showthread.php/421909-%E3%80%90Space-Warfare-Sim%E3%80%91Rai-7-PUK/page19
@@ -4470,32 +4843,32 @@ bool InsertRejetHook()
  *
  *  @tryguy
  *  [sol-fa-soft]
- *  17 г‚№г‚Їж°ґдёЌи¦Ѓи«–: /HA4@4AD140
- *  18 гЃЄгЃЄгЃЎг‚ѓг‚“гЃЁгЃ„гЃЈгЃ—г‚‡: /HA4@5104A0
- *  19 з™єжѓ…гЃ¦г‚“гЃ“гЃ†гЃ›гЃ„: /HA4@51D720
- *  20 г‚ЏгЃџгЃ—гЃ®гЃџгЃѕгЃ”гЃ•г‚“: /HA4@4968E0
- *  21 дї®е­¦ж—…иЎЊе¤њж›ґгЃ‹гЃ—зµ„: /HA4@49DC00
- *  22 гЃЉгЃјгЃ€гЃџгЃ¦г‚­гѓѓг‚є: /HA4@49DDB0
- *  23 гЃЎгЃЈгЃ•гЃ„е·«еҐігЃ•г‚“SOS: /HA4@4B4AA0
- *  24 гЃЇгЃг‚ЃгЃ¦гЃ®гЃЉгЃµг‚Ќг‚„гЃ•г‚“: /HA4@4B5600
- *  25 гЃЇгЃЌг‚ЏгЃ™г‚Њж„›еҐЅдјљ: /HA4@57E360
- *  26 жњќгЃЈгЃ±г‚‰гЃ‹г‚‰з™єжѓ…е®¶ж—Џ: /HA4@57E360
- *  27 гЃЁгЃЄг‚ЉгЃ®гѓґг‚Ўгѓігѓ‘г‚¤г‚ў: /HA4@5593B0
- *  28 йє¦г‚Џг‚‰еёЅе­ђгЃЁж°ґиѕєгЃ®е¦–зІѕ: /HA4@5593B0
- *  29 жµ·гЃЁжё©жі‰гЃЁе¤Џдј‘гЃї: /HA4@6DE8E0
- *  30 й§„иЏ“е­ђе±‹гЃ•г‚“з№Ѓз››иЁ: /HA4@6DEC90
- *  31 жµґиЎЈгЃ®дё‹гЃЇвЂ¦ пЅћзҐћз¤ѕгЃ§з™єи¦‹пјЃ гѓЋгѓјгѓ‘гѓіе°‘еҐіпЅћ: /HA4@6DEC90
- *  32 гѓ—гѓјгѓ«гЃ®гЃгЃ‹г‚“ г‚№г‚Їж°ґдёЌи¦Ѓи«–2: /HA4@62AE10
- *  33 е¦№гЃ®гЃЉжіЉгЃѕг‚Љдјљ: /HA4@6087A0
- *  34 и–„зќЂе°‘еҐі: /HA4@6087A0
- *  35 гЃ‚г‚„г‚Ѓ Princess Intermezzo: /HA4@609BF0
+ *  17 スク水不要論: /HA4@4AD140
+ *  18 ななちゃんといっしょ: /HA4@5104A0
+ *  19 発情てんこうせい: /HA4@51D720
+ *  20 わたしのたまごさん: /HA4@4968E0
+ *  21 修学旅行夜更かし組: /HA4@49DC00
+ *  22 おぼえたてキッズ: /HA4@49DDB0
+ *  23 ちっさい巫女さんSOS: /HA4@4B4AA0
+ *  24 はじめてのおふろやさん: /HA4@4B5600
+ *  25 はきわすれ愛好会: /HA4@57E360
+ *  26 朝っぱらから発情家族: /HA4@57E360
+ *  27 となりのヴァンパイア: /HA4@5593B0
+ *  28 麦わら帽子と水辺の妖精: /HA4@5593B0
+ *  29 海と温泉と夏休み: /HA4@6DE8E0
+ *  30 駄菓子屋さん繁盛記: /HA4@6DEC90
+ *  31 浴衣の下は… ～神社で発見！ ノーパン少女～: /HA4@6DEC90
+ *  32 プールのじかん スク水不要論2: /HA4@62AE10
+ *  33 妹のお泊まり会: /HA4@6087A0
+ *  34 薄着少女: /HA4@6087A0
+ *  35 あやめ Princess Intermezzo: /HA4@609BF0
  *
- *  SG01 з”·ж№ЇпјІ: /HA4@6087A0
+ *  SG01 男湯Ｒ: /HA4@6087A0
  *
- *  c71 зњџе†¬гЃ®е¤§ж™¦ж—ҐCD: /HA4@516b50
- *  c78 sol-fa-softзњџе¤ЏгЃ®гЃЉж°—жҐЅCD: /HA4@6DEC90
+ *  c71 真冬の大晦日CD: /HA4@516b50
+ *  c78 sol-fa-soft真夏のお気楽CD: /HA4@6DEC90
  *
- *  Example: 35 гЃ‚г‚„г‚Ѓ Princess Intermezzo: /HA4@609BF0
+ *  Example: 35 あやめ Princess Intermezzo: /HA4@609BF0
  *  - addr: 6331376 = 0x609bf0
  *  - length_offset: 1
  *  - off: 4
@@ -4504,19 +4877,19 @@ bool InsertRejetHook()
 bool InsertSolfaHook()
 {
   const BYTE ins[] = {
-     // 005f2afd   eb 13          jmp short гЃЉгЃјгЃ€гЃџ.005f2b12
+     // 005f2afd   eb 13          jmp short おぼえた.005f2b12
      0x33,0xc0, // 005f2aff   33c0           xor eax,eax
      0x40, // 005f2b01   40             inc eax
      0xc3, // 005f2b02   c3             retn
      0x8b,0x65, 0xe8 // 005f2b03   8b65 e8        mov esp,dword ptr ss:[ebp-0x18]
      // 005f2b06   c745 fc feffff>mov dword ptr ss:[ebp-0x4],-0x2
      // 005f2b0d   b8 ff000000    mov eax,0xff
-     // 005f2b12   e8 865a0000    call гЃЉгЃјгЃ€гЃџ.005f859d
+     // 005f2b12   e8 865a0000    call おぼえた.005f859d
      // 005f2b17   c3             retn
-     // 005f2b18   e8 395c0000    call гЃЉгЃјгЃ€гЃџ.005f8756
+     // 005f2b18   e8 395c0000    call おぼえた.005f8756
   };
   ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //ITH_GROWL_DWORD4(reladdr, module_base_, range, module_base_ + reladdr);
   if (!reladdr) {
     ConsoleOutput("vnreng:SolfaSoft: pattern not found");
@@ -4572,14 +4945,14 @@ bool InsertBaldrHook()
   // Instruction pattern: 90FF503C83C4208B45EC
   cons BYTE ins[] = {0x90,0xff,0x50,0x3c,0x83,0xc4,0x20,0x8b,0x45,0xec};
   //const BYTE ins[] = {0xec,0x45,0x8b,0x20,0xc4,0x83,0x3c,0x50,0xff,0x90};
-  enum { cur_ins_offset = 0 };
+  enum { hook_offset = 0 };
   enum { limit = 0x10000000 }; // very large ><
   //enum { range = 0x10000000 };
   //enum { range = 0x1000000 };
   //enum { range = 0x7fffffff };
   //ULONG range = min(module_limit_ - module_base_, MAX_REL_ADDR);
   ULONG range = min(module_limit_ - module_base_, limit);
-  ULONG reladdr = SearchPattern(module_base_, range, (LPVOID)ins, sizeof(ins));
+  ULONG reladdr = SearchPattern(module_base_, range, ins, sizeof(ins));
   //ITH_GROWL_DWORD3(base, range, reladdr);
   if (!reladdr) {
     ConsoleOutput("vnreng:BALDR: pattern not found");
@@ -4587,7 +4960,7 @@ bool InsertBaldrHook()
   }
 
   HookParam hp = {};
-  hp.addr = module_base_ + reladdr + cur_ins_offset;
+  hp.addr = module_base_ + reladdr + hook_offset;
   hp.off = 4;
   hp.type = NO_CONTEXT | USING_STRING | USING_UNICODE; // 0x403
 

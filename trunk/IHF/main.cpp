@@ -21,6 +21,7 @@
 #include <ITH\IHF_SYS.h>
 #include <ITH\CustomFilter.h>
 #include <CommCtrl.h>
+#include "common\const.h"
 
 #define IHF
 #include <ITH\IHF.h>

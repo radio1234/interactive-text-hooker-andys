@@ -18,6 +18,7 @@
 #include <ITH\IHF_SYS.h>
 #include <ITH\ntdll.h>
 #include <ITH\string.h>
+#include "common\const.h"
 
 #include <ITH\TextThread.h>
 

@@ -25,11 +25,13 @@ bool InsertAnex86Hook();        // Anex86: anex86.exe
 bool InsertApricotHook();       // Apricot: arc.a*
 bool InsertArtemisHook();       // Artemis Engine: *.pfs
 bool InsertAtelierHook();       // Atelier Kaguya: message.dat
+bool InsertAUHook();            // Eiyuu Senki: Check.mdx
 bool InsertBGIHook();           // BGI: BGI.*
 bool InsertC4Hook();            // C4: C4.EXE or XEX.EXE
 bool InsertCaramelBoxHook();    // Caramel: *.bin
 bool InsertCandyHook();         // SystemC@CandySoft: *.fpk
 bool InsertCatSystem2Hook();    // CatSystem2: *.int
+bool InsertCMVSHook();          // CMVS: data/pack/*.cpz; do not support the latest cmvs32.exe and cmvs64.exe
 bool InsertCotophaHook();       // Cotopha: *.noa
 bool InsertDebonosuHook();      // Debonosu: bmp.bak and dsetup.dll
 bool InsertEMEHook();           // EmonEngine: emecfg.ecf
@@ -37,7 +39,8 @@ bool InsertGesen18Hook();       // Gsen18: *.szs
 bool InsertGXPHook();           // GXP: *.gxp
 bool InsertLiveHook();          // Live: live.dll
 bool InsertMalieHook();         // Malie@light: malie.ini
-bool InsertMEDHook();           // RunrunEngine: *.med
+bool InsertMajiroHook();        // MAJIRO: *.arc
+bool InsertMEDHook();           // MED: *.med
 bool InsertNextonHook();        // NEXTON: aInfo.db
 bool InsertNitroPlusHook();     // NitroPlus: *.npa
 bool InsertPensilHook();        // Pensil: PSetup.exe
@@ -46,7 +49,7 @@ bool InsertQLIEHook();          // QLiE: GameData/*.pack
 bool InsertRejetHook();         // Rejet: Module/{gd.dat,pf.dat,sd.dat}
 bool InsertRUGPHook();          // rUGP: rUGP.exe
 bool InsertRetouchHook();       // Retouch: resident.dll
-bool InsertRREHook();           // RRE: rrecfg.rcf
+bool InsertRREHook();           // RunrunEngine: rrecfg.rcf
 bool InsertShinaHook();         // ShinaRio: Rio.ini
 bool InsertShinyDaysHook();     // ShinyDays
 bool InsertSystem43Hook();      // System43@AliceSoft: AliceStart.ini
@@ -63,9 +66,7 @@ bool InsertWolfHook();          // Wolf: Data.wolf
 
 void InsertAB2TryHook();        // Yane@AkabeiSoft2Try: YaneSDK.dll.
 void InsertBrunsHook();         // Bruns: bruns.exe
-void InsertCMVSHook();          // CMVS: data/pack/*.cpz; do not support the latest cmvs32.exe and cmvs64.exe
 void InsertLuneHook();          // Lune: *.mbl
-void InsertMajiroHook();        // MAJIRO: *.arc
 void InsertKiriKiriHook();      // KiriKiri: *.xp3, resource string
 void InsertIronGameSystemHook();// IroneGameSystem: igs_sample.exe
 void InsertLucifenHook();       // Lucifen@Navel: *.lpk

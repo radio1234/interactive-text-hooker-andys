@@ -350,7 +350,7 @@ int FillRange(LPWSTR name,DWORD* lower, DWORD* upper)
 	}
 	return 0;
 }
-DWORD SearchPattern(DWORD base, DWORD base_length, LPVOID search, DWORD search_length) // KMP
+DWORD SearchPattern(DWORD base, DWORD base_length, LPCVOID search, DWORD search_length) // KMP
 {
 	__asm
 	{

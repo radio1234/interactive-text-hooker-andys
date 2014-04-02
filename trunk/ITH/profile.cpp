@@ -18,6 +18,7 @@
 
 
 #include "profile.h"
+#include "common\const.h"
 
 
 extern bool Parse(LPWSTR cmd, HookParam& hp);

@@ -46,7 +46,7 @@ class TextHook : public Hook
 public:
 	int InsertHook();
 	int InsertHookCode();
-	int InitHook(const HookParam&, LPWSTR name=0, WORD set_flag=0);
+	int InitHook(const HookParam&, LPCWSTR name=0, WORD set_flag=0);
 	int InitHook(LPVOID addr, DWORD data, DWORD data_ind, 
 		DWORD split_off, DWORD split_ind, WORD type, DWORD len_off=0);
 	DWORD Send(DWORD dwDataBase, DWORD dwRetn);

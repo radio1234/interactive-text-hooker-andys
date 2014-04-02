@@ -17,6 +17,7 @@
 
 //#include <ITH\ntdll.h>
 #include <ITH\common.h>
+#include "common\const.h"
 #include <ITH\HookManager.h>
 #include <ITH\mem.h>
 #include <ITH\IHF_SYS.h>

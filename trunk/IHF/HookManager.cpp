@@ -22,6 +22,7 @@
 #include <ITH\BitMap.h>
 #include "language.h"
 #include <emmintrin.h>
+#include "common\const.h"
 
 #define MAX_ENTRY 0x40
 
