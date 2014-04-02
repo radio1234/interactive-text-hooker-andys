@@ -19,6 +19,7 @@
 #include "ITH.h"
 #include "language.h"
 #include <windows.h>
+#include "common\const.h"
 void ConsoleOutput(LPCWSTR text)
 {
 

@@ -493,24 +493,28 @@ int TextHook::InitHook(LPVOID addr, DWORD data, DWORD data_ind,
 	IthReleaseMutex(hmMutex);
 	return this-hookman;
 }
-int TextHook::InitHook(const HookParam& h, LPWSTR name, WORD set_flag)
+int TextHook::InitHook(const HookParam &h, LPCWSTR name, WORD set_flag)
 {
-	NtWaitForSingleObject(hmMutex,0,0);
-	hp=h;
-	hp.type|=set_flag;
-	if (name&&name!=hook_name)
-	{
-		if (hook_name) delete hook_name;
-		name_length=wcslen(name)+1;
-		hook_name=new WCHAR[name_length];
-		wcscpy(hook_name,name);
-	}
-	current_hook++;
-	current_available=this+1;
-	while (current_available->Address()) current_available++;
-	IthReleaseMutex(hmMutex);
-	return 1;
+  NtWaitForSingleObject(hmMutex, 0, 0);
+  hp = h;
+  hp.type |= set_flag;
+  if (name && name != hook_name) {
+    if (hook_name)
+      delete[] hook_name;
+    name_length = wcslen(name) + 1;
+    hook_name = new wchar_t[name_length];
+    //ITH_MEMSET_HEAP(hook_name, 0, sizeof(wchar_t) * name_length); // jichi 9/26/2013: zero memory
+    hook_name[name_length - 1] = 0;
+    wcscpy(hook_name, name);
+  }
+  current_hook++;
+  current_available = this+1;
+  while (current_available->Address())
+    current_available++;
+  IthReleaseMutex(hmMutex);
+  return 1;
 }
+
 int TextHook::RemoveHook()
 {
 	if (hp.addr)

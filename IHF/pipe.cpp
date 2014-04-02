@@ -18,6 +18,7 @@
 #include "main.h"
 #include <ITH\HookManager.h>
 //#include "CommandQueue.h"
+#include "common\const.h"
 
 #define NAMED_PIPE_DISCONNECT 1
 #define NAMED_PIPE_CONNECT 2

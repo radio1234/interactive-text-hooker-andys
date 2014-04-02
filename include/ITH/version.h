@@ -1,1 +1,1 @@
-const wchar_t* build_date=L"17.03.2014"; 
+const wchar_t* build_date=L"02.04.2014"; 

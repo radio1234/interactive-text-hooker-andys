@@ -20,6 +20,7 @@
 #include <ITH\string.h>
 #include <ITH\mem.h>
 
+/*
 #define IHF_COMMAND -1
 #define IHF_COMMAND_NEW_HOOK 0
 #define IHF_COMMAND_REMOVE_HOOK 1
@@ -28,7 +29,9 @@
 #define IHF_NOTIFICATION -1
 #define IHF_NOTIFICATION_TEXT 0
 #define IHF_NOTIFICATION_NEWHOOK 1
+*/
 
+/*
 #define USING_STRING			0x1
 #define USING_UNICODE		0x2
 #define BIG_ENDIAN			0x4
@@ -44,8 +47,8 @@
 #define HOOK_AUXILIARY 0x2000
 #define HOOK_ENGINE 0x4000
 #define HOOK_ADDITIONAL 0x8000
-
-#define MAX_HOOK 32
+*/
+//#define MAX_HOOK 32
 
 
 

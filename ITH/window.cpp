@@ -15,6 +15,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "window.h"
+#include "common\const.h"
 
 #define CMD_SIZE 0x200
 

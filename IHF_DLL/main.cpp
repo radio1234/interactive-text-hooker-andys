@@ -185,35 +185,38 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 }
 
 extern "C" {
-DWORD IHFAPI NewHook(const HookParam& hp, LPWSTR name, DWORD flag)
-{
-	int current; WCHAR str[0x80];
 
-	current=current_available-hookman;
-	if (current>=MAX_HOOK) OutputConsole(L"Too many hooks.");
-	else {
-		flag &= 0xFFFF;
-		if ((flag & HOOK_AUXILIARY) == 0)
-		{
-			flag |= HOOK_ADDITIONAL;
-			if (name==0 || *name == 0)
-			{
-				name=str;
-				swprintf(name,L"UserHook%d",user_hook_count++);
-			}
-		}
-		hookman[current].InitHook(hp,name,flag & 0xFFFF);
-		if (hookman[current].InsertHook()==0)
-		{
-			OutputConsole(L"Additional hook inserted.");
-			swprintf(str,L"Insert address 0x%.8X.",hookman[current].Address());
-			OutputConsole(str);
-			RequestRefreshProfile();
-		}
-		else OutputConsole(L"Unable to insert hook.");
-	}
-	return 0;
+DWORD IHFAPI NewHook(const HookParam &hp, LPCWSTR name, DWORD flag)
+{
+  //WCHAR str[0x80];
+  int current = ::current_available - ::hookman;
+  if (current < MAX_HOOK) {
+    //flag &= 0xffff;
+    //if ((flag & HOOK_AUXILIARY) == 0)
+    flag |= HOOK_ADDITIONAL;
+      //if (name == 0 || *name == 0) {
+      //  name = str;
+      //  swprintf(name,L"UserHook%d",user_hook_count++);
+      //}
+
+    ConsoleOutput("vnrcli:NewHook: try inserting hook.");
+
+    ::hookman[current].InitHook(hp, name, flag & 0xffff);
+    if (::hookman[current].InsertHook() == 0) {
+      ConsoleOutput("vnrcli:NewHook: hook inserted");
+      //ConsoleOutputW(name);
+      //swprintf(str,L"Insert address 0x%.8X.", hookman[current].Address());
+      RequestRefreshProfile();
+    } else
+      ConsoleOutput("vnrcli:NewHook:WARNING: failed to insert hook");
+
+
+    //else
+    //  ConsoleOutput(L"Unable to insert hook.");
+  }
+  return 0;
 }
+
 DWORD IHFAPI RemoveHook(DWORD addr)
 {
 	for (int i=0;i<MAX_HOOK;i++)
