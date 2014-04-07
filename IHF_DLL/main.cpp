@@ -188,16 +188,16 @@ extern "C" {
 
 DWORD IHFAPI NewHook(const HookParam &hp, LPCWSTR name, DWORD flag)
 {
-  //WCHAR str[0x80];
+  WCHAR str[0x80];
   int current = ::current_available - ::hookman;
   if (current < MAX_HOOK) {
     //flag &= 0xffff;
     //if ((flag & HOOK_AUXILIARY) == 0)
     flag |= HOOK_ADDITIONAL;
-      //if (name == 0 || *name == 0) {
-      //  name = str;
-      //  swprintf(name,L"UserHook%d",user_hook_count++);
-      //}
+      if (name == 0 || *name == 0) {
+        swprintf(str,L"UserHook%d",user_hook_count++);
+		name = str;
+      }
 
     ConsoleOutput("vnrcli:NewHook: try inserting hook.");
 
@@ -205,7 +205,7 @@ DWORD IHFAPI NewHook(const HookParam &hp, LPCWSTR name, DWORD flag)
     if (::hookman[current].InsertHook() == 0) {
       ConsoleOutput("vnrcli:NewHook: hook inserted");
       //ConsoleOutputW(name);
-      //swprintf(str,L"Insert address 0x%.8X.", hookman[current].Address());
+      swprintf(str,L"Insert address 0x%.8X.", hookman[current].Address());
       RequestRefreshProfile();
     } else
       ConsoleOutput("vnrcli:NewHook:WARNING: failed to insert hook");
