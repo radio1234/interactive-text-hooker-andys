@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C++ Express 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ITH", "ITH\ITH.vcxproj", "{1A196FCB-1ABB-463C-8C8E-6A878CDBB280}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C07A8FA2-3841-43BC-B877-8A7437DCC07B} = {C07A8FA2-3841-43BC-B877-8A7437DCC07B}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IHF", "IHF\IHF.vcxproj", "{C07A8FA2-3841-43BC-B877-8A7437DCC07B}"
 EndProject

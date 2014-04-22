@@ -12,6 +12,7 @@
 
 namespace Util {
 
+
 DWORD GetCodeRange(DWORD hModule,DWORD *low, DWORD *high);
 DWORD FindCallAndEntryBoth(DWORD fun, DWORD size, DWORD pt, DWORD sig);
 DWORD FindCallOrJmpRel(DWORD fun, DWORD size, DWORD pt, bool jmp);
@@ -21,6 +22,9 @@ DWORD FindCallAndEntryAbs(DWORD fun, DWORD size, DWORD pt, DWORD sig);
 DWORD FindCallAndEntryRel(DWORD fun, DWORD size, DWORD pt, DWORD sig);
 DWORD FindEntryAligned(DWORD start, DWORD back_range);
 DWORD FindImportEntry(DWORD hModule, DWORD fun);
+
+// jichi 4/15/2014: Copied from ITH CLI, for debugging purpose
+DWORD FindModuleBase(DWORD hash);
 
 bool SearchResourceString(LPCWSTR str);
 
