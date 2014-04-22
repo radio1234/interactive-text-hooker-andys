@@ -20,12 +20,13 @@ DWORD DetermineNoHookEngine();
 // Engine-specific hooks
 
 bool InsertAbelHook();          // Abel
+bool InsertAdobeAirHook();      // Adobe AIR
 bool InsertAliceHook();         // System40@AliceSoft; do not work for latest alice games
 bool InsertAnex86Hook();        // Anex86: anex86.exe
+bool InsertAOSHook();           // AOS: *.aos
 bool InsertApricotHook();       // Apricot: arc.a*
 bool InsertArtemisHook();       // Artemis Engine: *.pfs
 bool InsertAtelierHook();       // Atelier Kaguya: message.dat
-bool InsertAUHook();            // Eiyuu Senki: Check.mdx
 bool InsertBGIHook();           // BGI: BGI.*
 bool InsertC4Hook();            // C4: C4.EXE or XEX.EXE
 bool InsertCaramelBoxHook();    // Caramel: *.bin
@@ -40,7 +41,9 @@ bool InsertGXPHook();           // GXP: *.gxp
 bool InsertLiveHook();          // Live: live.dll
 bool InsertMalieHook();         // Malie@light: malie.ini
 bool InsertMajiroHook();        // MAJIRO: *.arc
+bool InsertMarineHeartHook();   // Marine Heart: SAISYS.exe
 bool InsertMEDHook();           // MED: *.med
+bool InsertMonoHook();          // Mono (Unity3D): */Mono/mono.dll
 bool InsertNextonHook();        // NEXTON: aInfo.db
 bool InsertNitroPlusHook();     // NitroPlus: *.npa
 bool InsertPensilHook();        // Pensil: PSetup.exe
@@ -56,13 +59,12 @@ bool InsertSystem43Hook();      // System43@AliceSoft: AliceStart.ini
 bool InsertSiglusHook();        // SiglusEngine: SiglusEngine.exe
 bool InsertTanukiHook();        // Tanuki: *.tak
 bool InsertTaskforce2Hook();    // Taskforce2.exe
+bool InsertTencoHook();         // Tenco: Check.mdx
 bool InsertTriangleHook();      // Triangle: Execle.exe
-//bool InsertSolfaHook();         // sol-fa-soft: *.iar
+bool InsertSolfaHook();         // sol-fa-soft: *.iar
 bool InsertWhirlpoolHook();     // YU-RIS: *.ypf
 bool InsertWillPlusHook();      // WillPlus: Rio.arc
 bool InsertWolfHook();          // Wolf: Data.wolf
-
-//bool InsertBaldrHook();         // BaldrSkyZero (Unity3D): bsz.exe
 
 void InsertAB2TryHook();        // Yane@AkabeiSoft2Try: YaneSDK.dll.
 void InsertBrunsHook();         // Bruns: bruns.exe
