@@ -65,7 +65,7 @@ struct FilterRange
 	DWORD lower,upper;
 };
 extern FilterRange filter[8];
-int FillRange(LPWSTR name,DWORD* lower, DWORD* upper);
+int FillRange(LPCWSTR name,DWORD* lower, DWORD* upper);
 extern bool running,live;
 extern HANDLE hPipe,hmMutex;
 DWORD WINAPI WaitForPipe(LPVOID lpThreadParameter);

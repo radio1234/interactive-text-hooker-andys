@@ -311,7 +311,7 @@ private:
 };
 ThreadStartManager* thread_man;
 extern "C" {
-int FillRange(LPWSTR name,DWORD* lower, DWORD* upper)
+int FillRange(LPCWSTR name,DWORD* lower, DWORD* upper)
 {
 	PLDR_DATA_TABLE_ENTRY it;
 	LIST_ENTRY *begin;
