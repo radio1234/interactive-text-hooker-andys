@@ -1,4 +1,4 @@
-/*  Copyright (C) 2010-2012  kaosu (qiupf2000@gmail.com)
+﻿/*  Copyright (C) 2010-2012  kaosu (qiupf2000@gmail.com)
  *  This file is part of the Interactive Text Hooker.
 
  *  Interactive Text Hooker is free software: you can redistribute it and/or
@@ -303,4 +303,88 @@ void InitFilterTable()
 	AddRange(L"lpk.dll");
 	AddRange(L"psapi.dll");
 	AddRange(L"user32.dll");
+}
+// jichi 10/2/2013
+// Note: All functions does not have NO_CONTEXT attribute and will be filtered.
+void IHFAPI InsertNonGuiHooks()
+{
+  ConsoleOutput("vnrcli:InsertNonGuiHooks: enter");
+  // int TextHook::InitHook(LPVOID addr, DWORD data, DWORD data_ind, DWORD split_off, DWORD split_ind, WORD type, DWORD len_off)
+#define _(_name, _addr, _data, _data_ind, _split_off, _split_ind, _type, _len_off) \
+  { \
+    HookParam hp = {}; \
+    hp.addr = (DWORD)_addr; \
+    hp.off = _data; \
+    hp.ind = _data_ind; \
+    hp.split = _split_off; \
+    hp.split_ind = _split_ind; \
+    hp.type = _type; \
+    hp.length_offset = _len_off; \
+    NewHook(hp, _name); \
+  }
+
+  // http://msdn.microsoft.com/en-us/library/78zh94ax.aspx
+  // int WINAPI lstrlen(LPCTSTR lpString);
+  // Lstr functions usually extracts rubbish, and might crash certain games like 「Magical Marriage Lunatics!!」
+  // Needed by Gift
+  _(L"lstrlenA", lstrlenA, 0x4,  0,4,0, USING_STRING,  0) // 9/8/2013 jichi: int WINAPI lstrlen(LPCTSTR lpString);
+  _(L"lstrlenW", lstrlenW, 0x4,  0,4,0, USING_UNICODE|USING_STRING, 0) // 9/8/2013 jichi: add lstrlen
+
+  // size_t strlen(const char *str);
+  // size_t strlen_l(const char *str, _locale_t locale);
+  // size_t wcslen(const wchar_t *str);
+  // size_t wcslen_l(const wchar_t *str, _locale_t locale);
+  // size_t _mbslen(const unsigned char *str);
+  // size_t _mbslen_l(const unsigned char *str, _locale_t locale);
+  // size_t _mbstrlen(const char *str);
+  // size_t _mbstrlen_l(const char *str, _locale_t locale);
+
+  // http://msdn.microsoft.com/en-us/library/ex0hs2ad.aspx
+  // Needed by 娘姉妹
+  //
+  // <tchar.h>
+  // char *_strinc(const char *current, _locale_t locale);
+  // wchar_t *_wcsinc(const wchar_t *current, _locale_t locale);
+  // <mbstring.h>
+  // unsigned char *_mbsinc(const unsigned char *current);
+  // unsigned char *_mbsinc_l(const unsigned char *current, _locale_t locale);
+  //_(L"_strinc", _strinc, 0x4,  0,4,0, USING_STRING, 0) // 12/13/2013 jichi
+  //_(L"_wcsinc", _wcsinc, 0x4,  0,4,0, USING_UNICODE|USING_STRING, 0)
+
+  // 12/1/2013 jichi:
+  // AlterEgo
+  // http://tieba.baidu.com/p/2736475133
+  // http://www.hongfire.com/forum/showthread.php/36807-AGTH-text-extraction-tool-for-games-translation/page355
+  //
+  // MultiByteToWideChar
+  // http://blgames.proboards.com/thread/265
+  //
+  // WideCharToMultiByte
+  // http://www.hongfire.com/forum/showthread.php/36807-AGTH-text-extraction-tool-for-games-translation/page156
+  //
+  // int MultiByteToWideChar(
+  //   _In_       UINT CodePage,
+  //   _In_       DWORD dwFlags,
+  //   _In_       LPCSTR lpMultiByteStr, // hook here
+  //   _In_       int cbMultiByte,
+  //   _Out_opt_  LPWSTR lpWideCharStr,
+  //   _In_       int cchWideChar
+  // );
+  // int WideCharToMultiByte(
+  //   _In_       UINT CodePage,
+  //   _In_       DWORD dwFlags,
+  //   _In_       LPCWSTR lpWideCharStr,
+  //   _In_       int cchWideChar,
+  //   _Out_opt_  LPSTR lpMultiByteStr,
+  //   _In_       int cbMultiByte,
+  //   _In_opt_   LPCSTR lpDefaultChar,
+  //   _Out_opt_  LPBOOL lpUsedDefaultChar
+  // );
+
+  // 3/17/2014 jichi: Temporarily disabled
+  // http://sakuradite.com/topic/159
+  //_(L"MultiByteToWideChar", MultiByteToWideChar, 0xc,  0,4,0, USING_STRING, 4)
+  //_(L"WideCharToMultiByte", WideCharToMultiByte, 0xc,  0,4,0, USING_UNICODE|USING_STRING, 4)
+#undef _
+  ConsoleOutput("vnrcli:InsertNonGuiHooks: leave");
 }
