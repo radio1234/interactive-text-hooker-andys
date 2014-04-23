@@ -1,214 +1,42 @@
-﻿/*  Copyright (C) 2010-2012  kaosu (qiupf2000@gmail.com)
- *  This file is part of the Interactive Text Hooker.
+// eng/engine.cc
+// 8/9/2013 jichi
+// Branch: ITH_Engine/engine.cpp, revision 133
 
- *  Interactive Text Hooker is free software: you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as published
- *  by the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
-
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+#ifdef _MSC_VER
+# pragma warning (disable:4100)   // C4100: unreference formal parameter
+//# pragma warning (disable:4733)   // C4733: Inline asm assigning to 'FS:0' : handler not registered as safe handler
+#endif // _MSC_VER
 
 #include "engine.h"
 #include "engine_p.h"
-#include "common\const.h"
-#include "cc\ccmacro.h"
-#include "config.h"
+#include "util.h"
+#include "ith/cli/cli.h"
+#include "ith/sys/sys.h"
+#include "ith/common/except.h"
+//#include "ith/common/growl.h"
+#include "disasm/disasm.h"
 
-static wchar_t engine_version[] = L"3.1.0000";
-enum { MAX_REL_ADDR = 0x300000 };
+//#define ConsoleOutput(...)  (void)0     // jichi 8/18/2013: I don't need ConsoleOutput
 
+enum { MAX_REL_ADDR = 0x200000 }; // jichi 8/18/2013: maximum relative address
 
-BOOL WINAPI DllMain(HANDLE hModule, DWORD reason, LPVOID lpReserved)
-{
-	switch(reason)
-	{
-	case DLL_PROCESS_ATTACH:
-		{
-		LdrDisableThreadCalloutsForDll(hModule);
-		IthInitSystemService();
-		Engine::GetName();
-		RegisterEngineModule((DWORD)hModule, (DWORD)Engine::IdentifyEngine, (DWORD)Engine::InsertDynamicHook);
-		//swprintf(engine,L"ITH_ENGINE_%d",current_process_id);
-		//hEngineOn=IthCreateEvent(engine);
-		//NtSetEvent(hEngineOn,0);
-		}
-		break;
-	case DLL_PROCESS_DETACH:	
-		//NtClearEvent(hEngineOn);
-		//NtClose(hEngineOn);
-		IthCloseSystemService();
-		break;
-	}
-	return TRUE;
-}
-
+// - Global variables -
 
 namespace Engine {
 
-//HANDLE hEngineOn;
-struct CodeSection
-{
-	DWORD base;
-	DWORD size;
-};
-static WCHAR engine[0x20];
-extern DWORD module_base_, module_limit_;
-static LPVOID trigger_addr;
+WCHAR process_name_[MAX_PATH]; // cached
 
+DWORD module_base_,
+      module_limit_;
 
+//LPVOID trigger_addr;
+trigger_fun_t trigger_fun_;
 
-static union {
-	char text_buffer[0x1000];
-	wchar_t wc_buffer[0x800];
-	CodeSection code_section[0x200];
-};
-static char text_buffer_prev[0x1000];
-static DWORD buffer_index,buffer_length;
-extern BYTE LeadByteTable[0x100];
-bool (*trigger_fun_)(LPVOID addr, DWORD frame, DWORD stack);
+} // namespace Engine
 
-DWORD GetCodeRange(DWORD hModule,DWORD *low, DWORD *high)
-{
-	IMAGE_DOS_HEADER *DosHdr;
-	IMAGE_NT_HEADERS *NtHdr;
-	DWORD dwReadAddr;
-	IMAGE_SECTION_HEADER *shdr;
-	DosHdr=(IMAGE_DOS_HEADER*)hModule;
-	if (IMAGE_DOS_SIGNATURE==DosHdr->e_magic)
-	{
-		dwReadAddr=hModule+DosHdr->e_lfanew;
-		NtHdr=(IMAGE_NT_HEADERS*)dwReadAddr;
-		if (IMAGE_NT_SIGNATURE==NtHdr->Signature)
-		{
-			shdr=(PIMAGE_SECTION_HEADER)((DWORD)(&NtHdr->OptionalHeader)+NtHdr->FileHeader.SizeOfOptionalHeader);
-			while ((shdr->Characteristics&IMAGE_SCN_CNT_CODE)==0) shdr++;
-			*low=hModule+shdr->VirtualAddress;
-				*high=*low+(shdr->Misc.VirtualSize&0xFFFFF000)+0x1000;
-		}
-	}
-	return 0;
-}
-inline DWORD SigMask(DWORD sig)
-{
-	__asm
-	{
-		xor ecx,ecx
-		mov eax,sig
-_mask:
-		shr eax,8
-		inc ecx
-		test eax,eax
-		jnz _mask
-		sub ecx,4
-		neg ecx
-		or eax,-1
-		shl ecx,3
-		shr eax,cl
-	}
-}
+// - Methods -
 
-
-BOOL SafeFillRange(LPCWSTR dll, DWORD *lower, DWORD *upper)
-{
-  BOOL ret = FALSE;
-  ret = FillRange((LPWSTR)dll, lower, upper);
-  return ret;
-}
-
-
-
-static DWORD recv_esp, recv_eip;
-static EXCEPTION_DISPOSITION ExceptHandler(EXCEPTION_RECORD *ExceptionRecord,void * EstablisherFrame, CONTEXT *ContextRecord, void * DispatcherContext )
-{
-	if (ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION)
-	{
-		module_limit_=ExceptionRecord->ExceptionInformation[1];
-		OutputDWORD(module_limit_);
-		__asm
-		{
-			mov eax,fs:[0x30]
-			mov eax,[eax+0xC]
-			mov eax,[eax+0xC]
-			mov ecx,module_limit_
-			sub ecx,module_base_
-			mov [eax+0x20],ecx
-		}
-	}
-	ContextRecord->Esp=recv_esp;
-	ContextRecord->Eip=recv_eip;
-	return ExceptionContinueExecution;
-}
-
-// jichi 3/11/2014: The original FindEntryAligned function could raise exceptions without admin priv
-DWORD SafeFindEntryAligned(DWORD start, DWORD back_range)
-{
-  DWORD ret = 0;
-  ret = Util::FindEntryAligned(start, back_range);
-  return ret;
-}
-
-DWORD Engine::IdentifyEngine()
-{
-	FillRange(process_name_,&module_base_,&module_limit_);
-	BYTE status=0;
-	status=0;
-	__asm
-	{
-		mov eax,seh_recover
-		mov recv_eip,eax
-		push ExceptHandler
-		push fs:[0]
-		mov fs:[0],esp
-		pushad
-		mov recv_esp,esp
-	}
-	DetermineEngineType();status++;
-	__asm
-	{
-seh_recover:
-		popad
-		mov eax,[esp]
-		mov fs:[0],eax
-		add esp,8
-	}
-	if (status==0) OutputConsole(L"Fail to identify engine type.");		
-	else OutputConsole(L"Initialized successfully.");
-}
-
-
-
-//******    DETECT FUNCTIONS DOWN HERE (
-
-
-
-DWORD DetermineEngineType()
-{
-	WCHAR engine_info[0x100];
-	swprintf(engine_info, L"Engine support module %s", build_date);
-	OutputConsole(engine_info);
-	if (DetermineEngineByFile1()==0) return 0;
-	if (DetermineEngineByFile2()==0) return 0;
-	if (DetermineEngineByFile3()==0) return 0;
-	if (DetermineEngineByFile4()==0) return 0;
-	if (DetermineEngineByProcessName()==0) return 0;
-	if (DetermineEngineOther()==0) return 0;
-	if (DetermineNoHookEngine()==0)
-	{
-		OutputConsole(L"No special hook.");
-		return 0;
-	}
-	OutputConsole(L"Unknown engine.");
-	return 0;
-}
-
-// Copy/Paste from VNR down here
+namespace Engine {
 
 DWORD InsertDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
 { return !trigger_fun_(addr,frame,stack); }
@@ -280,7 +108,7 @@ DWORD DetermineEngineByFile1()
     InsertRejetHook();
     return yes;
   }
-   // Only examined with version 1.0
+  // Only examined with version 1.0
   //if (IthFindFile(L"Adobe AIR\\Versions\\*\\Adobe AIR.dll")) { // jichi 4/15/2014: FIXME: Wildcard not working
   if (IthCheckFile(L"Adobe AIR\\Versions\\1.0\\Adobe AIR.dll")) { // jichi 4/15/2014: Adobe AIR
     InsertAdobeAirHook();
@@ -648,7 +476,131 @@ DWORD DetermineNoHookEngine()
   return no;
 }
 
-//*****************************************************************************************
+namespace { // unnamed
 
+// 12/13/2013: Declare it in a way compatible to EXCEPTION_PROCEDURE
+EXCEPTION_DISPOSITION ExceptHandler(PEXCEPTION_RECORD ExceptionRecord, LPVOID, PCONTEXT, LPVOID)
+{
+  if (ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION) {
+    module_limit_ = ExceptionRecord->ExceptionInformation[1];
+    //OutputDWORD(module_limit_);
+    __asm
+    {
+      mov eax,fs:[0x30] // jichi 12/13/2013: get PEB
+      mov eax,[eax+0xc]
+      mov eax,[eax+0xc]
+      mov ecx,module_limit_
+      sub ecx,module_base_
+      mov [eax+0x20],ecx
+    }
+  }
+  //ContextRecord->Esp = recv_esp;
+  //ContextRecord->Eip = recv_eip;
+  //return ExceptionContinueExecution; // jichi 3/11/2014: this will still crash. Not sure why ITH use this. Change to ExceptionContinueSearch
+  return ExceptionContinueSearch; // an unwind is in progress,
+}
 
-} // Engine End
+// jichi 9/14/2013: Certain ITH functions like FindEntryAligned might raise exception without admin priv
+// Return if succeeded.
+bool UnsafeDetermineEngineType()
+{
+  return !(
+    DetermineEngineByFile1()
+    && DetermineEngineByFile2()
+    && DetermineEngineByFile3()
+    && DetermineEngineByFile4()
+    && DetermineEngineByProcessName()
+    && DetermineEngineOther()
+    && DetermineNoHookEngine()
+  );
+}
+} // unnamed
+
+DWORD DetermineEngineType()
+{
+  enum : DWORD { yes = 0, no = 1 };
+  // jichi 9/27/2013: disable game engine for debugging use
+#ifdef ITH_DISABLE_ENGINE
+  InsertNonGuiHooks();
+  return no;
+#else
+  DWORD ret = no;
+#ifdef ITH_HAS_SEH
+  __try { ret = UnsafeDetermineEngineType() ? yes : no; }
+  __except(ExceptHandler((GetExceptionInformation())->ExceptionRecord, 0, 0, 0)) {}
+#else // use my own SEH
+  seh_with_eh(ExceptHandler,
+      ret = UnsafeDetermineEngineType() ? yes : no);
+#endif // ITH_HAS_SEH
+  if (ret == no)  // jichi 10/2/2013: Only enable it if no game engine is detected
+    InsertNonGuiHooks();
+  else
+    ConsoleOutput("vnreng: found game engine, IGNORE non gui hooks");
+  return ret;
+#endif // ITH_DISABLE_ENGINE
+}
+
+DWORD IdentifyEngine()
+{
+  // jichi 12/18/2013: Though FillRange could raise, it should never raise for he current process
+  // So, SEH is not used here.
+  FillRange(process_name_, &module_base_, &module_limit_);
+  return DetermineEngineType();
+}
+
+//  __asm
+//  {
+//    mov eax,seh_recover
+//    mov recv_eip,eax
+//    push ExceptHandler
+//    push fs:[0]
+//    mov fs:[0],esp
+//    pushad
+//    mov recv_esp,esp
+//  }
+//  DetermineEngineType();
+//  status++;
+//  __asm
+//  {
+//seh_recover:
+//    popad
+//    mov eax,[esp]
+//    mov fs:[0],eax
+//    add esp,8
+//  }
+//  if (status == 0)
+//    ConsoleOutput("Fail to identify engine type.");
+//  else
+//    ConsoleOutput("Initialized successfully.");
+//}
+
+} // namespace Engine
+
+// - Initialization -
+
+void Engine::init(HANDLE hModule)
+{
+  Util::GetProcessName(process_name_); // Initialize process name
+  ::RegisterEngineModule((DWORD)hModule, (DWORD)IdentifyEngine, (DWORD)InsertDynamicHook);
+}
+
+// EOF
+
+/*
+extern "C" {
+  // http://gmogre3d.googlecode.com/svn-history/r815/trunk/OgreMain/src/WIN32/OgreMinGWSupport.cpp
+  // http://forum.osdev.org/viewtopic.php?f=8&t=22352
+  //#pragma data_seg()
+  //#pragma comment(linker, "/merge:.CRT=.data") // works fine in visual c++ 6
+  //#pragma data_seg()
+  //#pragma comment(linker, "/merge:.CRT=.rdata")
+    // MSVC libs use _chkstk for stack-probing. MinGW equivalent is _alloca.
+  //void _alloca();
+  //void _chkstk() { _alloca(); }
+
+  // MSVC uses security cookies to prevent some buffer overflow attacks.
+  // provide dummy implementations.
+  //void _fastcall __security_check_cookie(intptr_t i) {}
+  void __declspec(naked) __fastcall __security_check_cookie(UINT_PTR cookie) {}
+}
+*/

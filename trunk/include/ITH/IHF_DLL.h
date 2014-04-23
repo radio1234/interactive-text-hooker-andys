@@ -35,3 +35,4 @@ extern "C" {
 	DWORD IHFAPI SwitchTrigger(DWORD on);
 	DWORD IHFAPI GetFunctionAddr(char* name, DWORD* addr, DWORD *base, DWORD* size, LPWSTR* base_name);
 }
+void IHFAPI InsertNonGuiHooks();

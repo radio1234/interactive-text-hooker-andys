@@ -50,6 +50,7 @@
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
     <LibraryPath>$(VCInstallDir)lib;$(VCInstallDir)atlmfc\lib;$(WindowsSdkDir)lib;$(FrameworkSDKDir)\lib;$(SolutionDir)lib;$(ProjectDir)lib;$(SolutionDir)libs</LibraryPath>
+    <IncludePath>$(ProjectDir);$(WindowsSdkDir)inc;$(IncludePath);$(SolutionDir)include;$(ProjectDir)include;$(SolutionDir)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -110,12 +111,14 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="engine.cpp" />
+    <ClCompile Include="engine.cc" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="engine_p.cc" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine.h" />
+    <ClInclude Include="main.h" />
     <ClInclude Include="engine_p.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
