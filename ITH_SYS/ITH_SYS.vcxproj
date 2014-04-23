@@ -85,6 +85,9 @@
     <ClCompile Include="disasm.cpp" />
     <ClCompile Include="SYS.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\ITH\IHF_SYS.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

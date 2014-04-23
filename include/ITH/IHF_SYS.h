@@ -20,7 +20,7 @@
 extern "C" {
 extern WORD* NlsAnsiCodePage;
 int disasm(BYTE* opcode0);
-int FillRange(LPWSTR name,DWORD* lower, DWORD* upper);
+int FillRange(LPCWSTR name,DWORD* lower, DWORD* upper);
 int MB_WC(char* mb, wchar_t* wc);
 int MB_WC_count(char* mb, int mb_length);
 int WC_MB(wchar_t *wc, char* mb);

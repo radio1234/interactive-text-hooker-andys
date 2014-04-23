@@ -6,6 +6,9 @@
 #include "ITH\version.h"
 
 
+
+namespace Engine {
+DWORD IdentifyEngine();
 DWORD DetermineEngineType();
 DWORD DetermineEngineByFile1();
 DWORD DetermineEngineByFile2();
@@ -14,71 +17,23 @@ DWORD DetermineEngineByFile4();
 DWORD DetermineEngineByProcessName();
 DWORD DetermineEngineOther();
 DWORD DetermineNoHookEngine();
+DWORD InsertDynamicHook(LPVOID addr, DWORD frame, DWORD stack);
+
+wchar_t process_name_[MAX_PATH];
+
+void inline GetName()
+{
+	PLDR_DATA_TABLE_ENTRY it;
+	__asm
+	{
+		mov eax,fs:[0x30]
+		mov eax,[eax+0xC]
+		mov eax,[eax+0xC]
+		mov it,eax
+	}
+	wcscpy(process_name_,it->BaseDllName.Buffer);
+}
+
+}
 
 
-
-// Engine-specific hooks
-
-bool InsertAbelHook();          // Abel
-bool InsertAdobeAirHook();      // Adobe AIR
-bool InsertAliceHook();         // System40@AliceSoft; do not work for latest alice games
-bool InsertAnex86Hook();        // Anex86: anex86.exe
-bool InsertAOSHook();           // AOS: *.aos
-bool InsertApricotHook();       // Apricot: arc.a*
-bool InsertArtemisHook();       // Artemis Engine: *.pfs
-bool InsertAtelierHook();       // Atelier Kaguya: message.dat
-bool InsertBGIHook();           // BGI: BGI.*
-bool InsertC4Hook();            // C4: C4.EXE or XEX.EXE
-bool InsertCaramelBoxHook();    // Caramel: *.bin
-bool InsertCandyHook();         // SystemC@CandySoft: *.fpk
-bool InsertCatSystem2Hook();    // CatSystem2: *.int
-bool InsertCMVSHook();          // CMVS: data/pack/*.cpz; do not support the latest cmvs32.exe and cmvs64.exe
-bool InsertCotophaHook();       // Cotopha: *.noa
-bool InsertDebonosuHook();      // Debonosu: bmp.bak and dsetup.dll
-bool InsertEMEHook();           // EmonEngine: emecfg.ecf
-bool InsertGesen18Hook();       // Gsen18: *.szs
-bool InsertGXPHook();           // GXP: *.gxp
-bool InsertLiveHook();          // Live: live.dll
-bool InsertMalieHook();         // Malie@light: malie.ini
-bool InsertMajiroHook();        // MAJIRO: *.arc
-bool InsertMarineHeartHook();   // Marine Heart: SAISYS.exe
-bool InsertMEDHook();           // MED: *.med
-bool InsertMonoHook();          // Mono (Unity3D): */Mono/mono.dll
-bool InsertNextonHook();        // NEXTON: aInfo.db
-bool InsertNitroPlusHook();     // NitroPlus: *.npa
-bool InsertPensilHook();        // Pensil: PSetup.exe
-bool InsertQLIEHook();          // QLiE: GameData/*.pack
-//bool InsertRai7Hook();          // Rai7puk: rai7.exe
-bool InsertRejetHook();         // Rejet: Module/{gd.dat,pf.dat,sd.dat}
-bool InsertRUGPHook();          // rUGP: rUGP.exe
-bool InsertRetouchHook();       // Retouch: resident.dll
-bool InsertRREHook();           // RunrunEngine: rrecfg.rcf
-bool InsertShinaHook();         // ShinaRio: Rio.ini
-bool InsertShinyDaysHook();     // ShinyDays
-bool InsertSystem43Hook();      // System43@AliceSoft: AliceStart.ini
-bool InsertSiglusHook();        // SiglusEngine: SiglusEngine.exe
-bool InsertTanukiHook();        // Tanuki: *.tak
-bool InsertTaskforce2Hook();    // Taskforce2.exe
-bool InsertTencoHook();         // Tenco: Check.mdx
-bool InsertTriangleHook();      // Triangle: Execle.exe
-bool InsertSolfaHook();         // sol-fa-soft: *.iar
-bool InsertWhirlpoolHook();     // YU-RIS: *.ypf
-bool InsertWillPlusHook();      // WillPlus: Rio.arc
-bool InsertWolfHook();          // Wolf: Data.wolf
-
-void InsertAB2TryHook();        // Yane@AkabeiSoft2Try: YaneSDK.dll.
-void InsertBrunsHook();         // Bruns: bruns.exe
-void InsertLuneHook();          // Lune: *.mbl
-void InsertKiriKiriHook();      // KiriKiri: *.xp3, resource string
-void InsertIronGameSystemHook();// IroneGameSystem: igs_sample.exe
-void InsertLucifenHook();       // Lucifen@Navel: *.lpk
-void InsertRyokuchaHook();      // Ryokucha: _checksum.exe
-void InsertRealliveHook();      // RealLive: RealLive*.exe
-void InsertSoftHouseHook();     // SoftHouse: *.vfs
-void InsertStuffScriptHook();   // Stuff: *.mpk
-void InsertTinkerBellHook();    // TinkerBell: arc00.dat
-void InsertWaffleHook();        // WAFFLE: cg.pak
-
-// CIRCUS: avdata/
-bool InsertCircusHook1();
-bool InsertCircusHook2();
