@@ -36,3 +36,5 @@ extern "C" {
 	DWORD IHFAPI GetFunctionAddr(char* name, DWORD* addr, DWORD *base, DWORD* size, LPWSTR* base_name);
 }
 void IHFAPI InsertNonGuiHooks();
+void IHFAPI InsertLstrHooks();
+void IHFAPI InsertWcharHooks();

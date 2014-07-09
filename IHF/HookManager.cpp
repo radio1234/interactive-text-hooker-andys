@@ -261,6 +261,7 @@ HookManager::HookManager()
 	thread_table->SetThread(0,entry);
 	SetCurrent(entry);
 	entry->Status()|=USING_UNICODE;
+	entry->Status()|=USING_UTF8;
 	//texts->SetUnicode(true);
 	//entry->AddToCombo();
 	//entry->ComboSelectCurrent();

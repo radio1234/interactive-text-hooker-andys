@@ -111,12 +111,16 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memsearch.cc" />
+    <ClCompile Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\ntinspect\ntinspect.cc" />
     <ClCompile Include="engine.cc" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="engine_p.cc" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memdbg.h" />
+    <ClInclude Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memsearch.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="engine_p.h" />

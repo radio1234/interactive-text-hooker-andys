@@ -47,6 +47,7 @@
 #define HOOK_AUXILIARY 0x2000
 #define HOOK_ENGINE 0x4000
 #define HOOK_ADDITIONAL 0x8000
+#define USING_UTF8        0x20000
 */
 //#define MAX_HOOK 32
 
