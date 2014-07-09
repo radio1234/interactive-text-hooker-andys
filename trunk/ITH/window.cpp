@@ -945,6 +945,7 @@ DWORD ThreadReset(TextThread* thread)
 	man->SetCurrent(thread);
 	thread->LockVector();
 	DWORD uni = thread->Status() & USING_UNICODE;
+	DWORD utf8 = thread->Status() & USING_UTF8;
 	DWORD len = 0,tmp = 0,line = 0;
 	LPWSTR wc;
 	if (uni)
@@ -986,7 +987,12 @@ DWORD ThreadCreate(TextThread* thread)
 			if (hk[i].Address() == tp->hook)
 			{
 				if (hk[i].Type() & USING_UNICODE)
+				{
 					thread->Status() |= USING_UNICODE;
+				} else if (hk[i].Type() & USING_UTF8)
+				{
+					thread->Status() |= USING_UTF8;
+				}
 				break;
 			}
 		}

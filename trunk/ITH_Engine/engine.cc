@@ -52,8 +52,20 @@ DWORD DetermineEngineByFile1()
     InsertBGIHook();
     return yes;
   }
+
+  if (IthCheckFile(L"AGERC.DLL")) { // jichi 6/1/2014: Eushully, AGE.EXE
+    InsertEushullyHook();
+    return yes;
+  }
   if (IthFindFile(L"data*.arc") && IthFindFile(L"stream*.arc")) {
     InsertMajiroHook();
+    return yes;
+  }
+  // jichi 5/31/2014
+  if (//IthCheckFile(L"Silkys.exe") ||    // It might or might not have Silkys.exe
+      // data, effect, layer, mes, music
+      IthCheckFile(L"data.arc") && IthCheckFile(L"effect.arc") && IthCheckFile(L"mes.arc")) {
+    InsertElfHook();
     return yes;
   }
   if (IthFindFile(L"data\\pack\\*.cpz")) {
@@ -98,6 +110,24 @@ DWORD DetermineEngineByFile1()
   // AlterEgo also has GameData/sound.pack but is not QLIE
   if (IthFindFile(L"GameData\\*.pack") && InsertQLIEHook())
     return yes;
+
+  if (IthFindFile(L"*.pac")) {
+    // jichi 6/3/2014: AMUSE CRAFT and SOFTPAL
+    // Selectively insert, so that lstrlenA can still get correct text if failed
+    if (IthCheckFile(L"dll\\resource.dll") && IthCheckFile(L"dll\\pal.dll") && InsertAmuseCraftHook())
+      return yes;
+
+    if (IthCheckFile(L"Thumbnail.pac")) {
+      //ConsoleOutput("vnreng: IGNORE NeXAS");
+      InsertNeXASHook(); // jichi 7/6/2014: GIGA
+      return yes;
+    }
+
+    if (Util::SearchResourceString(L"SOFTPAL")) {
+      ConsoleOutput("vnreng: IGNORE SoftPal UNiSONSHIFT");
+      return yes;
+    }
+  }
   // jichi 9/16/2013: Add Gesen18
   if (IthFindFile(L"*.szs") || IthFindFile(L"Data\\*.szs")) {
     InsertGesen18Hook();
@@ -260,8 +290,11 @@ DWORD DetermineEngineByFile4()
     InsertAOSHook();
     return yes;
   }
-  if (IthFindFile(L"*.iar") && InsertSolfaHook()) // jichi 4/18/2014: Other game engine could also have *.iar such as Ryokucha
+  // jichi 7/6/2014: named as ScenarioPlayer since resource string could be: scenario player program for xxx
+  if (IthFindFile(L"*.iar") && IthFindFile(L"*.sec5")) { // jichi 4/18/2014: Other game engine could also have *.iar such as Ryokucha
+    InsertScenarioPlayerHook();
     return yes;
+  }
   return no;
 }
 
@@ -335,13 +368,6 @@ DWORD DetermineEngineByProcessName()
 
   DWORD len = wcslen(str);
 
-  static WCHAR saveman[] = L"_checksum.exe";
-  wcscpy(str + len - 4, saveman);
-  if (IthCheckFile(str)) {
-    InsertRyokuchaHook();
-    return yes;
-  }
-
   // jichi 8/24/2013: Checking for Rio.ini or $procname.ini
   //wcscpy(str+len-4, L"_?.war");
   //if (IthFindFile(str)) {
@@ -356,10 +382,19 @@ DWORD DetermineEngineByProcessName()
   str[len - 2] = L'i';
   str[len - 1] = L'n';
   str[len] = 0;
-  if (IthCheckFile(str)) {
+  if (IthCheckFile(str) || IthCheckFile(L"trial.bin")) { // jichi 7/8/2014: add trial.bin
     InsertCaramelBoxHook();
     return yes;
   }
+
+  // This must appear at last since str is modified
+  static WCHAR saveman[] = L"_checksum.exe";
+  wcscpy(str + len - 4, saveman);
+  if (IthCheckFile(str)) {
+    InsertRyokuchaHook();
+    return yes;
+  }
+
   return no;
 }
 
@@ -412,6 +447,28 @@ DWORD DetermineEngineOther()
   return no;
 }
 
+// jichi 6/1/2014
+DWORD DetermineEngineGeneric()
+{
+  enum : DWORD { yes = 0, no = 1 }; // return value
+  DWORD ret = no;
+
+  if (IthCheckFile(L"AlterEgo.exe")) {
+    ConsoleOutput("vnreng: AlterEgo, INSERT WideChar hooks");
+    ret = yes;
+  }  else if (IthFindFile(L"data\\Sky\\*")) {
+    ConsoleOutput("vnreng: TEATIME, INSERT WideChar hooks");
+    ret = yes;
+  }
+  //}  else if (IthFindFile(L"image\\*.po2") || IthFindFile(L"image\\*.jo2")) {
+  //  ConsoleOutput("vnreng: HarukaKanata, INSERT WideChar hooks"); // はるかかなた
+  //  ret = yes;
+  //}
+  if (ret == yes)
+    InsertWcharHooks();
+  return ret;
+}
+
 DWORD DetermineNoHookEngine()
 {
   enum : DWORD { yes = 0, no = 1 }; // return value
@@ -420,11 +477,15 @@ DWORD DetermineNoHookEngine()
   //  ConsoleOutput("vnreng: IGNORE Unity");
   //  return yes;
   //}
-
-  if (IthCheckFile(L"AGERC.DLL")) { // jichi 3/17/2014: Eushully, AGE.EXE
-    ConsoleOutput("vnreng: IGNORE Eushully");
+  if (IthCheckFile(L"bsz_Data\\Managed\\UnityEngine.dll") || IthCheckFile(L"bsz2_Data\\Managed\\UnityEngine.dll")) {
+    ConsoleOutput("vnreng: IGNORE Unity");
     return yes;
   }
+
+  //if (IthCheckFile(L"AGERC.DLL")) { // jichi 3/17/2014: Eushully, AGE.EXE
+  //  ConsoleOutput("vnreng: IGNORE Eushully");
+  //  return yes;
+  //}
 
   if (IthCheckFile(L"EAGLS.dll")) { // jichi 3/24/2014: E.A.G.L.S
     ConsoleOutput("vnreng: IGNORE EAGLS");
@@ -444,17 +505,6 @@ DWORD DetermineNoHookEngine()
     ConsoleOutput("vnreng: IGNORE Bishop");
     return yes;
   }
-  if (IthFindFile(L"*.pac")) {
-    //if (IthCheckFile(L"Thumbnail.pac")) {
-    //  ConsoleOutput(L"GIGA");
-    //  return yes;
-    //}
-    if (Util::SearchResourceString(L"SOFTPAL")) {
-      ConsoleOutput("vnreng: IGNORE SoftPal UNiSONSHIFT");
-      return yes;
-    }
-  }
-
   if (wcsstr(process_name_, L"lcsebody") || !wcsncmp(process_name_, L"lcsebo~", 7)) { // jichi 3/19/2014: lcsebody.exe, GetGlyphOutlineA
     ConsoleOutput("vnreng: IGNORE lcsebody");
     return yes;
@@ -511,6 +561,7 @@ bool UnsafeDetermineEngineType()
     && DetermineEngineByFile4()
     && DetermineEngineByProcessName()
     && DetermineEngineOther()
+    && DetermineEngineGeneric()
     && DetermineNoHookEngine()
   );
 }
@@ -521,7 +572,7 @@ DWORD DetermineEngineType()
   enum : DWORD { yes = 0, no = 1 };
   // jichi 9/27/2013: disable game engine for debugging use
 #ifdef ITH_DISABLE_ENGINE
-  InsertNonGuiHooks();
+  InsertLstrHooks();
   return no;
 #else
   DWORD ret = no;
@@ -533,7 +584,7 @@ DWORD DetermineEngineType()
       ret = UnsafeDetermineEngineType() ? yes : no);
 #endif // ITH_HAS_SEH
   if (ret == no)  // jichi 10/2/2013: Only enable it if no game engine is detected
-    InsertNonGuiHooks();
+    InsertLstrHooks();
   else
     ConsoleOutput("vnreng: found game engine, IGNORE non gui hooks");
   return ret;

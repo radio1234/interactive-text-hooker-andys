@@ -46,6 +46,7 @@ enum pusha_off{
   , pusha_ebp_off = -0x18
   , pusha_esi_off = -0x1c
   , pusha_edi_off = -0x20
+  , pusha_off = -0x24 // pushad offset
 };
 
 #define HOOK_FUN_NAME_LIST \
@@ -82,7 +83,7 @@ enum IhfNotificationType {
 
 // jichi 9/8/2013: The meaning are gussed
 enum HookParamType : unsigned long {
-  HP_Null             = 0       // never used
+    HP_Null           = 0       // never used
   , USING_STRING      = 0x1     // type(data) is char* or wchar_t* and has length
   , USING_UNICODE     = 0x2     // type(data) is wchar_t or wchar_t*
   , BIG_ENDIAN        = 0x4     // type(data) is char
@@ -98,7 +99,18 @@ enum HookParamType : unsigned long {
   , HOOK_AUXILIARY    = 0x2000  // jichi 12/13/2013: None of known hooks are auxiliary
   , HOOK_ENGINE       = 0x4000
   , HOOK_ADDITIONAL   = 0x8000
+
+  // jichi 6/1/2014: fix the split value to 0x10001
+  , FIXING_SPLIT      = 0x1000
+  , RELATIVE_SPLIT    = 0x2000 // relative split return address
+
+  // Andys 9/7/2014 Trying to implement UTF8
+  , USING_UTF8        = 0x20000
 };
+
+// 6/1/2014: Fixed split value for hok parameter
+// Fuse all threads, and prevent floating
+enum { FIXED_SPLIT_VALUE = 0x10001 };
 
 // jichi 12/18/2013:
 // These dlls are used to guess the range for non-NO_CONTEXT hooks.

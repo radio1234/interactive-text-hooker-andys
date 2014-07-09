@@ -22,6 +22,7 @@ extern trigger_fun_t trigger_fun_;
 bool InsertAbelHook();          // Abel
 bool InsertAdobeAirHook();      // Adobe AIR
 bool InsertAliceHook();         // System40@AliceSoft; do not work for latest alice games
+bool InsertAmuseCraftHook();    // AMUSE CRAFT: *.pac
 bool InsertAnex86Hook();        // Anex86: anex86.exe
 bool InsertAOSHook();           // AOS: *.aos
 bool InsertApricotHook();       // Apricot: arc.a*
@@ -36,14 +37,16 @@ bool InsertCMVSHook();          // CMVS: data/pack/*.cpz; do not support the lat
 bool InsertCotophaHook();       // Cotopha: *.noa
 bool InsertDebonosuHook();      // Debonosu: bmp.bak and dsetup.dll
 bool InsertEMEHook();           // EmonEngine: emecfg.ecf
+bool InsertEushullyHook();      // Eushully: AGERC.DLL
 bool InsertGesen18Hook();       // Gsen18: *.szs
 bool InsertGXPHook();           // GXP: *.gxp
 bool InsertLiveHook();          // Live: live.dll
 bool InsertMalieHook();         // Malie@light: malie.ini
-bool InsertMajiroHook();        // MAJIRO: *.arc
+bool InsertMajiroHook();        // Majiro: *.arc
 bool InsertMarineHeartHook();   // Marine Heart: SAISYS.exe
 bool InsertMEDHook();           // MED: *.med
 bool InsertMonoHook();          // Mono (Unity3D): */Mono/mono.dll
+bool InsertNeXASHook();         // NeXAS: Thumbnail.pac
 bool InsertNextonHook();        // NEXTON: aInfo.db
 bool InsertNitroPlusHook();     // NitroPlus: *.npa
 bool InsertPensilHook();        // Pensil: PSetup.exe
@@ -55,13 +58,14 @@ bool InsertRetouchHook();       // Retouch: resident.dll
 bool InsertRREHook();           // RunrunEngine: rrecfg.rcf
 bool InsertShinaHook();         // ShinaRio: Rio.ini
 bool InsertShinyDaysHook();     // ShinyDays
+bool InsertElfHook();           // elf: Silky.exe
 bool InsertSystem43Hook();      // System43@AliceSoft: AliceStart.ini
 bool InsertSiglusHook();        // SiglusEngine: SiglusEngine.exe
 bool InsertTanukiHook();        // Tanuki: *.tak
 bool InsertTaskforce2Hook();    // Taskforce2.exe
 bool InsertTencoHook();         // Tenco: Check.mdx
 bool InsertTriangleHook();      // Triangle: Execle.exe
-bool InsertSolfaHook();         // sol-fa-soft: *.iar
+bool InsertScenarioPlayerHook();// sol-fa-soft: *.iar && *.sec5
 bool InsertWhirlpoolHook();     // YU-RIS: *.ypf
 bool InsertWillPlusHook();      // WillPlus: Rio.arc
 bool InsertWolfHook();          // Wolf: Data.wolf
