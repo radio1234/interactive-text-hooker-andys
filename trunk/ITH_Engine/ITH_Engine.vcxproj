@@ -97,7 +97,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>ntdll.lib;IHF_DLL.lib;ITH_SYS.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;IHF_DLL.lib;ITH_SYS.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>DllMain</EntryPointSymbol>
       <DataExecutionPrevention>false</DataExecutionPrevention>
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Configuration);C:\Program Files (x86)\Windows Kits\8.1\Lib\winv6.3\um\x86</AdditionalLibraryDirectories>
@@ -113,17 +113,21 @@
   <ItemGroup>
     <ClCompile Include="..\include\memdbg\memsearch.cc" />
     <ClCompile Include="..\include\ntinspect\ntinspect.cc" />
+    <ClCompile Include="..\include\winversion\winversion.cc" />
     <ClCompile Include="engine.cc" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="engine_p.cc" />
+    <ClCompile Include="pchooks.cc" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memdbg.h" />
     <ClInclude Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memsearch.h" />
+    <ClInclude Include="..\include\winversion\winversion.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="engine_p.h" />
+    <ClInclude Include="pchooks.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

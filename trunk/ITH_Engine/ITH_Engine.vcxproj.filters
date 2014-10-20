@@ -33,6 +33,12 @@
     <ClCompile Include="..\include\memdbg\memsearch.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pchooks.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\winversion\winversion.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.h">
@@ -51,6 +57,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memsearch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pchooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\winversion\winversion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

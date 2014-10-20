@@ -53,18 +53,28 @@
 
 
 
-struct HookParam //0x24
-{
-	typedef void (*DataFun)(DWORD, HookParam*, DWORD*, DWORD*, DWORD*);
+struct HookParam { // size: 0x24
+  // jichi 8/24/2013: For special hooks. Orignial name: DataFun
+  typedef void (*extern_fun_t)(DWORD, HookParam *, DWORD *, DWORD *, DWORD *);
 
-	DWORD addr;
-	DWORD off,ind,split,split_ind;
-	DWORD module,function;
-	DataFun extern_fun;
-	DWORD type;
-	WORD length_offset;
-	BYTE hook_len,recover_len;
+  DWORD addr;   // absolute or relative address
+  DWORD off,    // offset of the data in the memory
+        ind,    // ?
+        split,  // esp offset of the split character = pusha offset - 4
+        split_ind;  // ?
+  DWORD module, // hash of the module
+        function;
+  extern_fun_t extern_fun;
+  DWORD type;   // flags
+  WORD length_offset; // index of the string length
+  BYTE hook_len, // ?
+       recover_len; // ?
+
+  // 7/20/2014: jichi additional parameters for PSP games
+  DWORD userFlags,
+        userValue;
 };
+
 struct SendParam
 {
 	DWORD type;

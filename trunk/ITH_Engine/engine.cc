@@ -9,12 +9,12 @@
 
 #include "engine.h"
 #include "engine_p.h"
+#include "pchooks.h"
 #include "util.h"
 #include "ith/cli/cli.h"
 #include "ith/sys/sys.h"
 #include "ith/common/except.h"
-//#include "ith/common/growl.h"
-#include "disasm/disasm.h"
+#include "ith/common/growl.h"
 
 //#define ConsoleOutput(...)  (void)0     // jichi 8/18/2013: I don't need ConsoleOutput
 
@@ -24,10 +24,13 @@ enum { MAX_REL_ADDR = 0x200000 }; // jichi 8/18/2013: maximum relative address
 
 namespace Engine {
 
-WCHAR process_name_[MAX_PATH]; // cached
+WCHAR process_name_[MAX_PATH], // cached
+      process_path_[MAX_PATH]; // cached
 
 DWORD module_base_,
       module_limit_;
+
+bool processAttached_;
 
 //LPVOID trigger_addr;
 trigger_fun_t trigger_fun_;
@@ -36,10 +39,46 @@ trigger_fun_t trigger_fun_;
 
 // - Methods -
 
-namespace Engine {
+namespace Engine { namespace { // unnamed
 
 DWORD InsertDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
 { return !trigger_fun_(addr,frame,stack); }
+
+// jichi 7/17/2014: Disable GDI hooks for PPSSPP
+DWORD DeterminePCEngine()
+{
+  enum : DWORD { yes = 0, no = 1 }; // return value
+  if (IthFindFile(L"PPSSPP*.exe")) { // jichi 7/12/2014 PPSSPPWindows.exe, PPSSPPEX.exe PPSSPPSP.exe
+    InsertPPSSPPHooks();
+    return yes;
+  }
+
+  if (IthFindFile(L"pcsx2*.exe")) { // jichi 7/19/2014 PCSX2.exe or PCSX2WX.exe
+    if (!InsertPCSX2Hooks()) { // don't forget to rebuild vnrcli to inject SSE
+      // Always insert PC hooks so that user could add PCSX2 to VNR.
+      // TO BE REMOVED after more PS2 engines are added.
+      PcHooks::hookGDIFunctions();
+      PcHooks::hookLstrFunctions();
+    }
+
+    return yes;
+  }
+
+  if (IthFindFile(L"Dolphin.exe")) { // jichi 7/20/2014
+    if (!InsertGCHooks()) {
+      // Always insert PC hooks so that user could add PCSX2 to VNR.
+      // TO BE REMOVED after more PS2 engines are added.
+      PcHooks::hookGDIFunctions();
+      PcHooks::hookLstrFunctions();
+    }
+
+    return yes;
+  }
+
+  // PC games
+  PcHooks::hookGDIFunctions();
+  return no;
+}
 
 DWORD DetermineEngineByFile1()
 {
@@ -48,12 +87,22 @@ DWORD DetermineEngineByFile1()
     InsertKiriKiriHook();
     return yes;
   }
+  // 8/2/2014 jichi: Game name shown as 2RM - Adventure Engine
+  if (Util::SearchResourceString(L"2RM") && Util::SearchResourceString(L"Adventure Engine")) {
+    Insert2RMHook();
+    return yes;
+  }
+  // 8/2/2014 jichi: Copyright is side-B, a conf.dat will be generated after the game is launched
+  // It also contains lua5.1.dll and lua5.dll
+  if (Util::SearchResourceString(L"side-B")) {
+    InsertSideBHook();
+    return yes;
+  }
   if (IthFindFile(L"bgi.*")) {
     InsertBGIHook();
     return yes;
   }
-
-  if (IthCheckFile(L"AGERC.DLL")) { // jichi 6/1/2014: Eushully, AGE.EXE
+  if (IthCheckFile(L"AGERC.DLL")) { // 6/1/2014 jichi: Eushully, AGE.EXE
     InsertEushullyHook();
     return yes;
   }
@@ -159,7 +208,7 @@ DWORD DetermineEngineByFile2()
     InsertRetouchHook();
     return yes;
   }
-  if (IthCheckFile(L"malie.ini")) {
+  if (IthCheckFile(L"Malie.ini") || IthCheckFile(L"Malie.exe")) { // jichi: 9/9/2014: Add malie.exe in case malie.ini is missing
     InsertMalieHook();
     return yes;
   }
@@ -184,14 +233,15 @@ DWORD DetermineEngineByFile2()
     InsertTinkerBellHook();
     return yes;
   }
-  if (IthFindFile(L"*.vfs")) {
+  if (IthFindFile(L"*.vfs")) { // jichi 7/6/2014: Better to test AoiLib.dll? ja.wikipedia.org/wiki/ソフトハウスキャラ
     InsertSoftHouseHook();
     return yes;
   }
   if (IthFindFile(L"*.mbl")) {
-    InsertLuneHook();
+    InsertMBLHook();
     return yes;
   }
+  // jichi 8/1/2014: YU-RIS engine, lots of clockup game also has this pattern
   if (IthFindFile(L"pac\\*.ypf") || IthFindFile(L"*.ypf")) {
     // jichi 8/14/2013: CLOCLUP: "ノーブレスオブリージュ" would crash the game.
     if (!IthCheckFile(L"noblesse.exe"))
@@ -237,7 +287,7 @@ DWORD DetermineEngineByFile3()
     return yes;
   }
   if (IthFindFile(L"arc.a*")) {
-    InsertApricotHook();
+    InsertApricoTHook();
     return yes;
   }
   if (IthFindFile(L"*.mpk")) {
@@ -290,9 +340,18 @@ DWORD DetermineEngineByFile4()
     InsertAOSHook();
     return yes;
   }
-  // jichi 7/6/2014: named as ScenarioPlayer since resource string could be: scenario player program for xxx
-  if (IthFindFile(L"*.iar") && IthFindFile(L"*.sec5")) { // jichi 4/18/2014: Other game engine could also have *.iar such as Ryokucha
-    InsertScenarioPlayerHook();
+  if (IthFindFile(L"*.ykc")) { // jichi 7/15/2014: YukaSystem1 is not supported, though
+    //ConsoleOutput("vnreng: IGNORE YKC:Feng/HookSoft(SMEE)");
+    InsertYukaSystem2Hook();
+    return yes;
+  }
+  if (IthCheckFile(L"EAGLS.dll")) { // jichi 3/24/2014: E.A.G.L.S
+    //ConsoleOutput("vnreng: IGNORE EAGLS");
+    InsertEaglsHook();
+    return yes;
+  }
+  if (IthFindFile(L"model\\*.hed")) { // jichi 9/8/2014: EXP
+    InsertExpHook();
     return yes;
   }
   return no;
@@ -388,10 +447,12 @@ DWORD DetermineEngineByProcessName()
   }
 
   // This must appear at last since str is modified
-  static WCHAR saveman[] = L"_checksum.exe";
-  wcscpy(str + len - 4, saveman);
+  wcscpy(str + len - 4, L"_checksum.exe");
   if (IthCheckFile(str)) {
     InsertRyokuchaHook();
+
+    if (IthFindFile(L"*.iar") && IthFindFile(L"*.sec5")) // jichi 9/27/2014: For new Ryokucha games
+      InsertScenarioPlayerHook();
     return yes;
   }
 
@@ -447,6 +508,31 @@ DWORD DetermineEngineOther()
   return no;
 }
 
+// jichi 8/17/2014
+// Put the patterns that might break other games at last
+DWORD DetermineEngineAtLast()
+{
+  enum : DWORD { yes = 0, no = 1 }; // return value
+  // jichi 7/6/2014: named as ScenarioPlayer since resource string could be: scenario player program for xxx
+  // Do this at last as it is common
+  if (IthFindFile(L"*.iar") && IthFindFile(L"*.sec5")) { // jichi 4/18/2014: Other game engine could also have *.iar such as Ryokucha
+    InsertScenarioPlayerHook();
+    return yes;
+  }
+  if (IthCheckFile(L"comnArc.arc") // jichi 8/17/2014: this file might exist in multiple files
+      && InsertNexton1Hook()) // old nexton game
+    return yes;
+  if (IthCheckFile(L"arc.dat") // jichi 9/27/2014: too common
+      && InsertApricoTHook())
+    return yes;
+#if 0
+  if (IthFindFile(L"swf\\*.swf") // jichi 9/28/2014: Adobe Flash Player
+      && InsertAdobeFlash10Hook()) // only v10 might be supported. Otherwise, fallback to Lstr hooks
+    return yes;
+#endif // 0
+  return no;
+}
+
 // jichi 6/1/2014
 DWORD DetermineEngineGeneric()
 {
@@ -465,7 +551,7 @@ DWORD DetermineEngineGeneric()
   //  ret = yes;
   //}
   if (ret == yes)
-    InsertWcharHooks();
+    PcHooks::hookWcharFunctions();
   return ret;
 }
 
@@ -487,25 +573,25 @@ DWORD DetermineNoHookEngine()
   //  return yes;
   //}
 
-  if (IthCheckFile(L"EAGLS.dll")) { // jichi 3/24/2014: E.A.G.L.S
-    ConsoleOutput("vnreng: IGNORE EAGLS");
-    return yes;
-  }
-
   if (IthCheckFile(L"game_sys.exe")) {
     ConsoleOutput("vnreng: IGNORE Atelier Kaguya BY/TH");
     return yes;
   }
 
-  if (IthFindFile(L"*.ykc")) {
-    ConsoleOutput("vnreng: IGNORE YKC:Feng/HookSoft(SMEE)");
-    return yes;
-  }
   if (IthFindFile(L"*.bsa")) {
     ConsoleOutput("vnreng: IGNORE Bishop");
     return yes;
   }
-  if (wcsstr(process_name_, L"lcsebody") || !wcsncmp(process_name_, L"lcsebo~", 7)) { // jichi 3/19/2014: lcsebody.exe, GetGlyphOutlineA
+
+  // jichi 3/19/2014: Escude game
+  // Example: bgm.bin gfx.bin maou.bin script.bin snd.bin voc.bin
+  if (IthCheckFile(L"gfx.bin") && IthCheckFile(L"snd.bin") && IthCheckFile(L"voc.bin")) {
+    ConsoleOutput("vnreng: IGNORE Escudo");
+    return yes;
+  }
+
+
+  if (wcsstr(process_name_, L"lcsebody") || !wcsncmp(process_name_, L"lcsebo~", 7)) { // jichi 3/19/2014: LC-ScriptEngine, GetGlyphOutlineA
     ConsoleOutput("vnreng: IGNORE lcsebody");
     return yes;
   }
@@ -525,8 +611,6 @@ DWORD DetermineNoHookEngine()
   }
   return no;
 }
-
-namespace { // unnamed
 
 // 12/13/2013: Declare it in a way compatible to EXCEPTION_PROCEDURE
 EXCEPTION_DISPOSITION ExceptHandler(PEXCEPTION_RECORD ExceptionRecord, LPVOID, PCONTEXT, LPVOID)
@@ -555,24 +639,25 @@ EXCEPTION_DISPOSITION ExceptHandler(PEXCEPTION_RECORD ExceptionRecord, LPVOID, P
 bool UnsafeDetermineEngineType()
 {
   return !(
-    DetermineEngineByFile1()
+    DeterminePCEngine()
+    && DetermineEngineByFile1()
     && DetermineEngineByFile2()
     && DetermineEngineByFile3()
     && DetermineEngineByFile4()
     && DetermineEngineByProcessName()
     && DetermineEngineOther()
+    && DetermineEngineAtLast()
     && DetermineEngineGeneric()
     && DetermineNoHookEngine()
   );
 }
-} // unnamed
 
 DWORD DetermineEngineType()
 {
   enum : DWORD { yes = 0, no = 1 };
   // jichi 9/27/2013: disable game engine for debugging use
 #ifdef ITH_DISABLE_ENGINE
-  InsertLstrHooks();
+  PcHooks::hookLstrFunctions();
   return no;
 #else
   DWORD ret = no;
@@ -584,7 +669,7 @@ DWORD DetermineEngineType()
       ret = UnsafeDetermineEngineType() ? yes : no);
 #endif // ITH_HAS_SEH
   if (ret == no)  // jichi 10/2/2013: Only enable it if no game engine is detected
-    InsertLstrHooks();
+    PcHooks::hookLstrFunctions();
   else
     ConsoleOutput("vnreng: found game engine, IGNORE non gui hooks");
   return ret;
@@ -625,13 +710,14 @@ DWORD IdentifyEngine()
 //    ConsoleOutput("Initialized successfully.");
 //}
 
-} // namespace Engine
+}} // namespace Engine unnamed
 
 // - Initialization -
 
 void Engine::init(HANDLE hModule)
 {
   Util::GetProcessName(process_name_); // Initialize process name
+  Util::GetProcessPath(process_path_); // Initialize process path
   ::RegisterEngineModule((DWORD)hModule, (DWORD)IdentifyEngine, (DWORD)InsertDynamicHook);
 }
 
