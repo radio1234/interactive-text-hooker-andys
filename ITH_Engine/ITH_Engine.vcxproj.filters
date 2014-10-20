@@ -27,10 +27,10 @@
     <ClCompile Include="engine.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\memdbg\memsearch.cc">
+    <ClCompile Include="..\include\ntinspect\ntinspect.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Visual Novel Reader\Library\Frameworks\Sakura\cpp\libs\ntinspect\ntinspect.cc">
+    <ClCompile Include="..\include\memdbg\memsearch.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
