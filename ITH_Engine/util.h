@@ -46,6 +46,25 @@ inline void GetProcessName(wchar_t *name)
 }
 
 /**
+ *  @param  path with process name and directy name
+ */
+inline void GetProcessPath(wchar_t *path)
+{
+  //assert(path);
+  PLDR_DATA_TABLE_ENTRY it;
+  __asm
+  {
+    mov eax,fs:[0x30]
+    mov eax,[eax+0xc]
+    mov eax,[eax+0xc]
+    mov it,eax
+  }
+  wcscpy(path, it->FullDllName.Buffer);
+}
+
+
+
+/**
  *  @return  HANDLE  module handle
  */
 inline DWORD GetModuleBase()

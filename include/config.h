@@ -1,8 +1,10 @@
 #pragma once
 
 #include "common\except.h"
-#include "common/memory.h"
-#include "common/string.h"
+#include "common\memory.h"
+#include "common\string.h"
+#include "ith\common.h"
+#include "ith\IHF_DLL.h"
 
 #include <windows.h>
 
