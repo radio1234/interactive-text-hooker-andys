@@ -48,33 +48,7 @@ DWORD InsertDynamicHook(LPVOID addr, DWORD frame, DWORD stack)
 DWORD DeterminePCEngine()
 {
   enum : DWORD { yes = 0, no = 1 }; // return value
-  if (IthFindFile(L"PPSSPP*.exe")) { // jichi 7/12/2014 PPSSPPWindows.exe, PPSSPPEX.exe PPSSPPSP.exe
-    InsertPPSSPPHooks();
-    return yes;
-  }
-
-  if (IthFindFile(L"pcsx2*.exe")) { // jichi 7/19/2014 PCSX2.exe or PCSX2WX.exe
-    if (!InsertPCSX2Hooks()) { // don't forget to rebuild vnrcli to inject SSE
-      // Always insert PC hooks so that user could add PCSX2 to VNR.
-      // TO BE REMOVED after more PS2 engines are added.
-      PcHooks::hookGDIFunctions();
-      PcHooks::hookLstrFunctions();
-    }
-
-    return yes;
-  }
-
-  if (IthFindFile(L"Dolphin.exe")) { // jichi 7/20/2014
-    if (!InsertGCHooks()) {
-      // Always insert PC hooks so that user could add PCSX2 to VNR.
-      // TO BE REMOVED after more PS2 engines are added.
-      PcHooks::hookGDIFunctions();
-      PcHooks::hookLstrFunctions();
-    }
-
-    return yes;
-  }
-
+  
   // PC games
   PcHooks::hookGDIFunctions();
   return no;
@@ -84,10 +58,19 @@ DWORD DetermineEngineByFile1()
 {
   enum : DWORD { yes = 0, no = 1 }; // return value
   if (IthFindFile(L"*.xp3") || Util::SearchResourceString(L"TVP(KIRIKIRI)")) {
+    if (Util::SearchResourceString(L"TVP(KIRIKIRI) Z ")) { // TVP(KIRIKIRI) Z CORE
+      // jichi 11/24/2014: Disabled that might crash VBH
+      //if (IthCheckFile(L"plugin\\KAGParser.dll"))
+      //  InsertKAGParserHook();
+      //else if (IthCheckFile(L"plugin\\KAGParserEx.dll"))
+      //  InsertKAGParserExHook();
+      if (InsertKiriKiriZHook())
+        return true;
+    }
     InsertKiriKiriHook();
-    return yes;
+    return true;
   }
-  // 8/2/2014 jichi: Game name shown as 2RM - Adventure Engine
+// 8/2/2014 jichi: Game name shown as 2RM - Adventure Engine
   if (Util::SearchResourceString(L"2RM") && Util::SearchResourceString(L"Adventure Engine")) {
     Insert2RMHook();
     return yes;
@@ -234,8 +217,8 @@ DWORD DetermineEngineByFile2()
     return yes;
   }
   if (IthFindFile(L"*.vfs")) { // jichi 7/6/2014: Better to test AoiLib.dll? ja.wikipedia.org/wiki/ソフトハウスキャラ
-    InsertSoftHouseHook();
-    return yes;
+    InsertSystemAoiHook();
+    return true;
   }
   if (IthFindFile(L"*.mbl")) {
     InsertMBLHook();
