@@ -22,51 +22,12 @@ extern trigger_fun_t trigger_fun_;
 
 // Wii engines
 
-bool InsertGCHooks(); // Dolphin
-bool InsertVanillawareGCHook();
 
 // PS2 engines
 
-bool InsertPCSX2Hooks(); // PCSX2
-bool InsertMarvelousPS2Hook();  // http://marvelous.jp
-bool InsertMarvelous2PS2Hook(); // http://marvelous.jp
-bool InsertTypeMoonPS2Hook();   // http://typemoon.com
 //bool InsertNamcoPS2Hook();
 
 // PSP engines
-
-void SpecialPSPHook(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split, DWORD *len); // General PSP extern hook
-
-bool InsertPPSSPPHooks();        // PPSSPPWindows
-
-bool InsertPPSSPPHLEHooks();
-bool InsertOtomatePPSSPPHook(); // PSP otomate.jp, 0.9.9.0 only
-
-bool Insert5pbPSPHook();        // PSP 5pb.jp
-bool InsertAlchemistPSPHook();  // PSP Alchemist-net.co.jp, 0.9.8 only
-bool InsertAlchemist2PSPHook(); // PSP Alchemist-net.co.jp
-bool InsertBandaiNamePSPHook(); // PSP Bandai.co.jp
-bool InsertBandaiPSPHook();     // PSP Bandai.co.jp
-bool InsertBroccoliPSPHook();   // PSP Broccoli.co.jp
-bool InsertFelistellaPSPHook(); // PSP felistella.co.jp
-
-bool InsertCyberfrontPSPHook(); // PSP CYBERFRONT (closed)
-bool InsertImageepochPSPHook(); // PSP Imageepoch.co.jp
-bool InsertImageepoch2PSPHook();// PSP Imageepoch.co.jp
-bool InsertKadokawaNamePSPHook(); // PSP Kadokawa.co.jp
-bool InsertKonamiPSPHook();     // PSP Konami.jp
-bool InsertTecmoPSPHook();      // PSP Koeitecmo.co.jp
-//bool InsertTypeMoonPSPHook(); // PSP Typemoon.com
-
-bool InsertOtomatePSPHook();    // PSP Otomate.jp, 0.9.8 only
-//bool InsertOtomate2PSPHook(); // PSP otomate.jp >= 0.9.9.1
-
-bool InsertIntensePSPHook();    // PSP Intense.jp
-bool InsertKidPSPHook();        // PSP Kid-game.co.jp
-bool InsertNippon1PSPHook();    // PSP Nippon1.jp
-bool InsertNippon2PSPHook();    // PSP Nippon1.jp
-bool InsertYetiPSPHook();       // PSP Yetigame.jp
-bool InsertYeti2PSPHook();      // PSP Yetigame.jp
 
 // PC engines
 
@@ -132,11 +93,12 @@ bool InsertWolfHook();          // Wolf: Data.wolf
 
 void InsertBrunsHook();         // Bruns: bruns.exe
 bool InsertKiriKiriHook();      // KiriKiri: *.xp3, resource string
+bool InsertKiriKiriZHook();
 void InsertIronGameSystemHook();// IroneGameSystem: igs_sample.exe
 void InsertLucifenHook();       // Lucifen@Navel: *.lpk
 void InsertRyokuchaHook();      // Ryokucha: _checksum.exe
 void InsertRealliveHook();      // RealLive: RealLive*.exe
-void InsertSoftHouseHook();     // SoftHouse: *.vfs
+bool InsertSystemAoiHook();     // SoftHouse: *.vfs
 void InsertStuffScriptHook();   // Stuff: *.mpk
 void InsertTinkerBellHook();    // TinkerBell: arc00.dat
 void InsertWaffleHook();        // WAFFLE: cg.pak
