@@ -38,3 +38,7 @@ extern "C" {
 void IHFAPI InsertNonGuiHooks();
 void IHFAPI InsertLstrHooks();
 void IHFAPI InsertWcharHooks();
+
+// 10/14/2014 jichi: disable GDI hooks
+
+void IHFAPI DisableGDIHooks();

@@ -39,6 +39,8 @@ extern DWORD enter_count;
 extern DWORD engine_type;
 extern DWORD module_base;
 AVLTree<char, FunctionInfo, SCMP, SCPY, SLEN> *tree;
+
+
 void AddModule(DWORD hModule, DWORD size, LPWSTR name)
 {
 	IMAGE_DOS_HEADER *DosHdr;

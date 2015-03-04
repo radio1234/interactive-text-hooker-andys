@@ -19,6 +19,23 @@
 #include <ITH\ntdll.h>
 TextHook *hookman,*current_available;
 
+static bool gdi_hook_disabled_ = false;
+
+void IHFAPI DisableGDIHooks()
+{ ::gdi_hook_disabled_ = true; }
+
+static bool IsGDIFunction(LPCVOID addr)
+{
+  static LPVOID funcs[] = { HOOK_GDI_FUNCTION_LIST };
+  for (size_t i = 0; i < sizeof(funcs)/sizeof(*funcs); i++)
+    if (addr == funcs[i])
+      return true;
+  return false;
+}
+
+
+
+
 FilterRange filter[8];
 static const int size_hook=sizeof(TextHook);
 DWORD flag, enter_count;

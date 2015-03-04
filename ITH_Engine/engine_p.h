@@ -131,7 +131,7 @@ bool InsertWillPlusHook();      // WillPlus: Rio.arc
 bool InsertWolfHook();          // Wolf: Data.wolf
 
 void InsertBrunsHook();         // Bruns: bruns.exe
-void InsertKiriKiriHook();      // KiriKiri: *.xp3, resource string
+bool InsertKiriKiriHook();      // KiriKiri: *.xp3, resource string
 void InsertIronGameSystemHook();// IroneGameSystem: igs_sample.exe
 void InsertLucifenHook();       // Lucifen@Navel: *.lpk
 void InsertRyokuchaHook();      // Ryokucha: _checksum.exe

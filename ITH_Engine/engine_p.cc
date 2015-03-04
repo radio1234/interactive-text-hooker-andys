@@ -18,6 +18,7 @@
 #include "disasm/disasm.h"
 #include "winversion/winversion.h"
 #include "cc/ccmacro.h"
+#include "ITH\IHF_DLL.h"
 
 // jichi 7/6/2014: read esp_base
 //#define retof(esp_base)  *(DWORD *)(esp_base) // not used
@@ -238,9 +239,8 @@ KiriKiri hook:
   char and we insert hook here to extract it.
 ********************************************************************************************/
 #if 0 // jichi 11/12/2013: not used
-static void SpecialHookKiriKiri(DWORD esp_base, HookParam *hp, DWORD *data, DWORD *split, DWORD *len)
+static void SpecialHookKiriKiri(DWORD esp_base, HookParam *, BYTE, DWORD *data, DWORD *split, DWORD *len)
 {
-  CC_UNUSED(hp);
   DWORD p1 =  *(DWORD *)(esp_base - 0x14),
         p2 =  *(DWORD *)(esp_base - 0x18);
   if ((p1>>16) == (p2>>16)) {
@@ -259,25 +259,45 @@ static void SpecialHookKiriKiri(DWORD esp_base, HookParam *hp, DWORD *data, DWOR
 }
 #endif // 0
 
-void FindKiriKiriHook(DWORD fun, DWORD size, DWORD pt, DWORD flag)
+bool FindKiriKiriHook(DWORD fun, DWORD size, DWORD pt, DWORD flag) // jichi 10/20/2014: change return value to bool
 {
+  enum : DWORD {
+    // jichi 10/20/2014: mov ebp,esp, sub esp,*
+    kirikiri1_sig = 0xec8b55,
+
+    // jichi 10/20/2014:
+    // 00e01542   53               push ebx
+    // 00e01543   56               push esi
+    // 00e01544   57               push edi
+    kirikiri2_sig = 0x575653
+  };
+  enum : DWORD { StartAddress = 0x1000 };
+  enum : DWORD { StartRange = 0x6000, StopRange = 0x8000 }; // jichi 10/20/2014: ITH original pattern range
+
+  // jichi 10/20/2014: The KiriKiri patterns exist in multiple places of the game.
+  //enum : DWORD { StartRange = 0x8000, StopRange = 0x9000 }; // jichi 10/20/2014: change to a different range
+
   //WCHAR str[0x40];
-  DWORD sig = flag ? 0x575653 : 0xec8b55;
+  DWORD sig = flag ? kirikiri2_sig : kirikiri1_sig;
   DWORD t = 0;
-  for (DWORD i = 0x1000; i < size - 4; i++)
-    if (*(WORD *)(pt + i) == 0x15ff) {
+  for (DWORD i = StartAddress; i < size - 4; i++)
+    if (*(WORD *)(pt + i) == 0x15ff) { // jichi 10/20/2014: call dword ptr ds
       DWORD addr = *(DWORD *)(pt + i + 2);
+
+      // jichi 10/20/2014: There are multiple function calls. The flag+1 one is selected.
+      // i.e. KiriKiri1: The first call to GetGlyphOutlineW is selected
+      //      KiriKiri2: The second call to GetTextExtentPoint32W is selected
       if (addr >= pt && addr <= pt + size - 4
           && *(DWORD *)addr == fun)
         t++;
       if (t == flag + 1)  // We find call to GetGlyphOutlineW or GetTextExtentPoint32W.
         //swprintf(str, L"CALL addr:0x%.8X",i+pt);
         //ConsoleOutput(str);
-        for (DWORD j = i; j > i - 0x1000; j--)
+        for (DWORD j = i; j > i - StartAddress; j--)
           if (((*(DWORD *)(pt + j)) & 0xffffff) == sig) {
             if (flag)  { // We find the function entry. flag indicate 2 hooks.
-              t = 0;  //KiriKiri2, we need to find call to this function.
-              for (DWORD k = j + 0x6000; k < j + 0x8000; k++) // Empirical range.
+              t = 0;  // KiriKiri2, we need to find call to this function.
+              for (DWORD k = j + StartRange; k < j + StopRange; k++) // Empirical range.
                 if (*(BYTE *)(pt + k) == 0xe8) {
                   if (k + 5 + *(DWORD *)(pt + k + 1) == j)
                     t++;
@@ -291,10 +311,10 @@ void FindKiriKiriHook(DWORD fun, DWORD size, DWORD pt, DWORD flag)
                     hp.ind = -0x2;
                     hp.split = -0xc;
                     hp.length_offset = 1;
-                    hp.type |= USING_UNICODE|NO_CONTEXT|USING_SPLIT|DATA_INDIRECT;
+                    hp.type = USING_UNICODE|NO_CONTEXT|USING_SPLIT|DATA_INDIRECT;
                     ConsoleOutput("vnreng: INSERT KiriKiri2");
                     NewHook(hp, L"KiriKiri2");
-                    return;
+                    return true;
                   }
                 }
             } else {
@@ -306,22 +326,32 @@ void FindKiriKiriHook(DWORD fun, DWORD size, DWORD pt, DWORD flag)
               hp.ind = 0x14;
               hp.split = -0x8;
               hp.length_offset = 1;
-              hp.type |= USING_UNICODE|DATA_INDIRECT|USING_SPLIT|SPLIT_INDIRECT;
+              hp.type = USING_UNICODE|DATA_INDIRECT|USING_SPLIT|SPLIT_INDIRECT;
               ConsoleOutput("vnreng: INSERT KiriKiri1");
               NewHook(hp, L"KiriKiri1");
+              return true;
             }
-            return;
+            return false;
           }
         //ConsoleOutput("vnreng:KiriKiri: FAILED to find function entry");
     }
-  ConsoleOutput("vnreng:KiriKiri: failed");
+  if (flag)
+    ConsoleOutput("vnreng:KiriKiri2: failed");
+  else
+    ConsoleOutput("vnreng:KiriKiri1: failed");
+  return false;
 }
 
-void InsertKiriKiriHook()
+bool InsertKiriKiriHook() // 9/20/2014 jichi: change return type to bool
 {
-  FindKiriKiriHook((DWORD)GetGlyphOutlineW,      module_limit_ - module_base_, module_base_, 0); // KiriKiri1
-  FindKiriKiriHook((DWORD)GetTextExtentPoint32W, module_limit_ - module_base_, module_base_, 1); // KiriKiri2
+  bool k1 = FindKiriKiriHook((DWORD)GetGlyphOutlineW,      module_limit_ - module_base_, module_base_, 0),  // KiriKiri1
+       k2 = FindKiriKiriHook((DWORD)GetTextExtentPoint32W, module_limit_ - module_base_, module_base_, 1); // KiriKiri2
   //RegisterEngineType(ENGINE_KIRIKIRI);
+  if (k1 && k2) {
+    ConsoleOutput("vnreng:KiriKiri1: disable GDI hooks");
+    DisableGDIHooks();
+  }
+  return k1 || k2;
 }
 
 /********************************************************************************************
